@@ -1,6 +1,7 @@
 import { useState, useRef, useCallback } from 'react'
 import { motion } from 'framer-motion'
 import { jsPDF } from 'jspdf'
+import mammoth from 'mammoth'
 
 const BASE_URL = import.meta.env.PROD
   ? (import.meta.env.VITE_API_URL || '')
@@ -67,14 +68,23 @@ export default function App() {
     })
   }
 
+  const ACCEPTED_TYPES = [
+    'application/pdf',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  ]
+
   function handleFileSelect(file) {
     if (!file) return
-    if (file.type !== 'application/pdf') {
-      setError('Please upload a PDF file.')
+    if (!ACCEPTED_TYPES.includes(file.type)) {
+      setError('Please upload a PDF or Word (.docx) file.')
       return
     }
     setError(null)
     setResumeFile(file)
+  }
+
+  function isDocx(file) {
+    return file?.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
   }
 
   function handleDragOver(e) {
@@ -227,7 +237,7 @@ export default function App() {
 
   async function handleSubmit() {
     if (!resumeFile) {
-      setError('Please upload your resume PDF.')
+      setError('Please upload your resume (PDF or Word).')
       return
     }
     if (!jobDescription.trim()) {
@@ -244,8 +254,15 @@ export default function App() {
 
     try {
       const formData = new FormData()
-      formData.append('resume', resumeFile)
       formData.append('jobDescription', jobDescription)
+
+      if (isDocx(resumeFile)) {
+        const arrayBuffer = await resumeFile.arrayBuffer()
+        const { value } = await mammoth.extractRawText({ arrayBuffer })
+        formData.append('resumeText', value)
+      } else {
+        formData.append('resume', resumeFile)
+      }
 
       const response = await fetch(`${BASE_URL}/api/analyze`, {
         method: 'POST',
@@ -362,16 +379,16 @@ export default function App() {
         <div className="bg-white/70 dark:bg-gray-800/70 backdrop-blur-xl rounded-2xl shadow-sm border border-white/20 dark:border-gray-700/50 p-6 mb-8">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
 
-            {/* LEFT: PDF Drop Zone */}
+            {/* LEFT: Resume Drop Zone */}
             <div>
               <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                Resume (PDF)
+                Resume (PDF or Word)
               </label>
 
               <input
                 ref={fileInputRef}
                 type="file"
-                accept=".pdf,application/pdf"
+                accept=".pdf,application/pdf,.docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
                 className="hidden"
                 onChange={(e) => handleFileSelect(e.target.files[0])}
               />
@@ -408,14 +425,22 @@ export default function App() {
                       <span className="font-medium text-indigo-600 dark:text-indigo-400">Click to browse</span>{' '}
                       or drag and drop
                     </p>
-                    <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">PDF only</p>
+                    <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">PDF or .docx</p>
                   </div>
                 </div>
               ) : (
                 <div className="flex items-center justify-between gap-4 h-44 rounded-xl border-2 border-green-200 dark:border-green-700 bg-green-50 dark:bg-green-950/50 px-5">
                   <div className="flex items-center gap-3 min-w-0">
-                    <div className="flex-shrink-0 w-10 h-10 bg-red-100 dark:bg-red-900/50 rounded-lg flex items-center justify-center">
-                      <span className="text-red-600 dark:text-red-400 text-xs font-bold">PDF</span>
+                    <div className={`flex-shrink-0 w-10 h-10 rounded-lg flex items-center justify-center ${
+                      isDocx(resumeFile)
+                        ? 'bg-blue-100 dark:bg-blue-900/50'
+                        : 'bg-red-100 dark:bg-red-900/50'
+                    }`}>
+                      <span className={`text-xs font-bold ${
+                        isDocx(resumeFile)
+                          ? 'text-blue-600 dark:text-blue-400'
+                          : 'text-red-600 dark:text-red-400'
+                      }`}>{isDocx(resumeFile) ? 'DOC' : 'PDF'}</span>
                     </div>
                     <div className="min-w-0">
                       <p className="text-sm font-medium text-gray-800 dark:text-gray-200 truncate">{resumeFile.name}</p>

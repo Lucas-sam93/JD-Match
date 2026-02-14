@@ -98,20 +98,29 @@ export default async function handler(req, res) {
       ? fields.jobDescription[0]
       : fields.jobDescription
 
+    const resumeTextField = Array.isArray(fields.resumeText)
+      ? fields.resumeText[0]
+      : fields.resumeText
+
     const resumeFile = Array.isArray(files.resume)
       ? files.resume[0]
       : files.resume
 
-    if (!resumeFile) {
-      return res.status(400).json({ error: 'Resume PDF is required.' })
+    if (!resumeFile && !resumeTextField) {
+      return res.status(400).json({ error: 'Resume file or text is required.' })
     }
     if (!jobDescription || !jobDescription.trim()) {
       return res.status(400).json({ error: 'Job description is required.' })
     }
 
-    const fileBuffer = readFileSync(resumeFile.filepath)
-    const pdfData = await pdf(fileBuffer)
-    const resumeText = pdfData.text
+    let resumeText
+    if (resumeTextField) {
+      resumeText = resumeTextField
+    } else {
+      const fileBuffer = readFileSync(resumeFile.filepath)
+      const pdfData = await pdf(fileBuffer)
+      resumeText = pdfData.text
+    }
 
     const genAI = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY)
     const model = genAI.getGenerativeModel({

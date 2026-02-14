@@ -100,15 +100,20 @@ app.post('/api/analyze', upload.single('resume'), async (req, res) => {
   try {
     const { jobDescription } = req.body
 
-    if (!req.file) {
-      return res.status(400).json({ error: 'Resume PDF is required.' })
+    if (!req.file && !req.body.resumeText) {
+      return res.status(400).json({ error: 'Resume file or text is required.' })
     }
     if (!jobDescription || !jobDescription.trim()) {
       return res.status(400).json({ error: 'Job description is required.' })
     }
 
-    const pdfData = await pdf(req.file.buffer)
-    const resumeText = pdfData.text
+    let resumeText
+    if (req.body.resumeText) {
+      resumeText = req.body.resumeText
+    } else {
+      const pdfData = await pdf(req.file.buffer)
+      resumeText = pdfData.text
+    }
 
     const result = await generateWithRetry(
       `Job Description:\n${jobDescription}\n\nResume:\n${resumeText}`
