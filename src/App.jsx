@@ -90,13 +90,80 @@ export default function App() {
     if (!results) return
     const { original, suggested } = results.rewrites[index]
 
-    const pos = resumeText.indexOf(original)
+    // Try exact match first
+    let pos = resumeText.indexOf(original)
+    let matchLen = original.length
+
+    // Fallback: normalize whitespace and try again
+    if (pos === -1) {
+      const normalize = (s) => s.replace(/\s+/g, ' ').trim().toLowerCase()
+      const normOriginal = normalize(original)
+      const normResume = normalize(resumeText)
+      const normPos = normResume.indexOf(normOriginal)
+
+      if (normPos !== -1) {
+        // Map normalized position back to original text
+        // Walk through original resumeText counting normalized chars
+        let normI = 0
+        let realStart = -1
+        let realEnd = -1
+        for (let ri = 0; ri < resumeText.length && realEnd === -1; ri++) {
+          if (/\s/.test(resumeText[ri])) {
+            // Skip consecutive whitespace in original (counts as one in normalized)
+            if (ri === 0 || !/\s/.test(resumeText[ri - 1])) {
+              if (normI === normPos && realStart === -1) realStart = ri
+              normI++ // the single space in normalized
+              if (normI === normPos + normOriginal.length && realStart !== -1) realEnd = ri + 1
+            } else {
+              // Extra whitespace char — part of the match range if we're inside it
+              if (normI === normPos + normOriginal.length && realStart !== -1) realEnd = ri
+            }
+          } else {
+            if (normI === normPos && realStart === -1) realStart = ri
+            normI++
+            if (normI === normPos + normOriginal.length && realStart !== -1) {
+              realEnd = ri + 1
+              // Include trailing whitespace that's part of the original segment
+              while (realEnd < resumeText.length && /\s/.test(resumeText[realEnd]) && (realEnd === resumeText.length - 1 || /\s/.test(resumeText[realEnd]))) {
+                if (!/\s/.test(resumeText[realEnd + 1] || '')) break
+                realEnd++
+              }
+            }
+          }
+        }
+
+        if (realStart !== -1 && realEnd !== -1) {
+          pos = realStart
+          matchLen = realEnd - realStart
+        }
+      }
+    }
+
+    // Final fallback: search for a significant fragment (first 40+ chars)
+    if (pos === -1) {
+      const words = original.split(/\s+/)
+      for (let len = Math.min(words.length, 8); len >= 3; len--) {
+        const fragment = words.slice(0, len).join(' ')
+        const fragLower = fragment.toLowerCase()
+        const resumeLower = resumeText.toLowerCase()
+        const fragPos = resumeLower.indexOf(fragLower)
+        if (fragPos !== -1) {
+          // Find end of the line/sentence containing this fragment
+          let endPos = resumeText.indexOf('\n', fragPos)
+          if (endPos === -1) endPos = resumeText.length
+          pos = fragPos
+          matchLen = endPos - fragPos
+          break
+        }
+      }
+    }
+
     if (pos === -1) {
       setError(`Could not find the original text in your resume to replace. It may have already been modified.`)
       return
     }
 
-    const newText = resumeText.slice(0, pos) + suggested + resumeText.slice(pos + original.length)
+    const newText = resumeText.slice(0, pos) + suggested + resumeText.slice(pos + matchLen)
     setResumeText(newText)
     setAppliedRewrites(prev => new Set(prev).add(index))
     setError(null)
@@ -104,7 +171,6 @@ export default function App() {
     setHighlightRange({ start: pos, end: pos + suggested.length })
     setTimeout(() => setHighlightRange(null), 1500)
 
-    // Scroll the live resume to show the replaced text after React re-renders
     setTimeout(() => {
       if (liveResumeRef.current) {
         const mark = liveResumeRef.current.querySelector('mark')
