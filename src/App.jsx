@@ -29,12 +29,6 @@ function getStrokeColor(score) {
   return '#ef4444'
 }
 
-function getCompetitiveEdgeStroke(score) {
-  if (score >= 76) return '#22c55e'
-  if (score >= 41) return '#6366f1'
-  return '#94a3b8'
-}
-
 function getScoreLabel(score) {
   if (score >= 76) return { text: 'Strong Match', color: 'text-green-500 dark:text-green-400' }
   if (score >= 41) return { text: 'Good Start', color: 'text-yellow-500 dark:text-yellow-400' }
@@ -280,14 +274,13 @@ export default function App() {
   }
 
   const scores = results ? [
-    { key: 'tech_match', label: 'Tech Match', value: results.tech_match },
+    { key: 'tech_match', label: 'Skills Matched', value: results.tech_match },
     { key: 'impact_match', label: 'Achievement Strength', value: results.impact_match },
     { key: 'ats_compatibility', label: 'ATS Ready', value: results.ats_compatibility },
-    { key: 'strict_score', label: 'Competitive Edge', value: results.strict_score },
   ] : []
 
   const overallMatch = results
-    ? Math.round((results.tech_match + results.impact_match + results.ats_compatibility + results.strict_score) / 4)
+    ? Math.round((results.tech_match + results.impact_match + results.ats_compatibility) / 3)
     : 0
 
   function renderResumeText() {
@@ -554,20 +547,7 @@ export default function App() {
 
                 {/* Score Breakdown */}
                 <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 p-6">
-                  <div className="flex items-center justify-between mb-5">
-                    <h2 className="text-lg font-semibold text-gray-700 dark:text-gray-200">Score Breakdown</h2>
-                    {results.confidence_rating != null && (
-                      <span className={`text-xs font-semibold px-2.5 py-1 rounded-full border ${
-                        results.confidence_rating >= 75
-                          ? 'bg-green-50 dark:bg-green-950/50 text-green-700 dark:text-green-400 border-green-200 dark:border-green-800'
-                          : results.confidence_rating >= 50
-                            ? 'bg-yellow-50 dark:bg-yellow-950/50 text-yellow-700 dark:text-yellow-400 border-yellow-200 dark:border-yellow-800'
-                            : 'bg-red-50 dark:bg-red-950/50 text-red-700 dark:text-red-400 border-red-200 dark:border-red-800'
-                      }`}>
-                        {results.confidence_rating}% confidence
-                      </span>
-                    )}
-                  </div>
+                  <h2 className="text-lg font-semibold text-gray-700 dark:text-gray-200 mb-5">Score Breakdown</h2>
 
                   {/* Hero Metric — Overall Match */}
                   <div className="flex flex-col items-center mb-6">
@@ -600,12 +580,9 @@ export default function App() {
                   </div>
 
                   {/* Sub-Scores */}
-                  <div className="grid grid-cols-4 gap-3">
+                  <div className="grid grid-cols-3 gap-4">
                     {scores.map(({ key, label, value }) => {
                       const offset = CIRCUMFERENCE * (1 - value / 100)
-                      const isCompetitiveEdge = key === 'strict_score'
-                      const strokeColor = isCompetitiveEdge ? getCompetitiveEdgeStroke(value) : getStrokeColor(value)
-                      const scoreColor = isCompetitiveEdge && value < 41 ? 'text-slate-400 dark:text-slate-500' : getScoreColor(value)
                       const lbl = getScoreLabel(value)
                       return (
                         <div key={key} className="flex flex-col items-center gap-1.5">
@@ -615,7 +592,7 @@ export default function App() {
                               <circle
                                 cx="48" cy="48" r={RADIUS}
                                 fill="none"
-                                stroke={strokeColor}
+                                stroke={getStrokeColor(value)}
                                 strokeWidth="7"
                                 strokeLinecap="round"
                                 strokeDasharray={CIRCUMFERENCE}
@@ -625,7 +602,7 @@ export default function App() {
                               />
                             </svg>
                             <div className="absolute inset-0 flex flex-col items-center justify-center">
-                              <span className={`text-base font-bold ${scoreColor}`}>
+                              <span className={`text-base font-bold ${getScoreColor(value)}`}>
                                 {value}
                               </span>
                             </div>
