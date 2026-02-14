@@ -42,6 +42,23 @@ export default function App() {
   const [highlightRange, setHighlightRange] = useState(null)
   const liveResumeRef = useRef(null)
 
+  // Dark mode state
+  const [darkMode, setDarkMode] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('jd-match-theme') === 'dark' ||
+        (!localStorage.getItem('jd-match-theme') && window.matchMedia('(prefers-color-scheme: dark)').matches)
+    }
+    return false
+  })
+
+  function toggleDarkMode() {
+    setDarkMode(prev => {
+      const next = !prev
+      localStorage.setItem('jd-match-theme', next ? 'dark' : 'light')
+      return next
+    })
+  }
+
   function handleFileSelect(file) {
     if (!file) return
     if (file.type !== 'application/pdf') {
@@ -103,20 +120,16 @@ export default function App() {
       const normPos = normResume.indexOf(normOriginal)
 
       if (normPos !== -1) {
-        // Map normalized position back to original text
-        // Walk through original resumeText counting normalized chars
         let normI = 0
         let realStart = -1
         let realEnd = -1
         for (let ri = 0; ri < resumeText.length && realEnd === -1; ri++) {
           if (/\s/.test(resumeText[ri])) {
-            // Skip consecutive whitespace in original (counts as one in normalized)
             if (ri === 0 || !/\s/.test(resumeText[ri - 1])) {
               if (normI === normPos && realStart === -1) realStart = ri
-              normI++ // the single space in normalized
+              normI++
               if (normI === normPos + normOriginal.length && realStart !== -1) realEnd = ri + 1
             } else {
-              // Extra whitespace char — part of the match range if we're inside it
               if (normI === normPos + normOriginal.length && realStart !== -1) realEnd = ri
             }
           } else {
@@ -124,7 +137,6 @@ export default function App() {
             normI++
             if (normI === normPos + normOriginal.length && realStart !== -1) {
               realEnd = ri + 1
-              // Include trailing whitespace that's part of the original segment
               while (realEnd < resumeText.length && /\s/.test(resumeText[realEnd]) && (realEnd === resumeText.length - 1 || /\s/.test(resumeText[realEnd]))) {
                 if (!/\s/.test(resumeText[realEnd + 1] || '')) break
                 realEnd++
@@ -140,7 +152,7 @@ export default function App() {
       }
     }
 
-    // Final fallback: search for a significant fragment (first 40+ chars)
+    // Final fallback: search for a significant fragment
     if (pos === -1) {
       const words = original.split(/\s+/)
       for (let len = Math.min(words.length, 8); len >= 3; len--) {
@@ -149,7 +161,6 @@ export default function App() {
         const resumeLower = resumeText.toLowerCase()
         const fragPos = resumeLower.indexOf(fragLower)
         if (fragPos !== -1) {
-          // Find end of the line/sentence containing this fragment
           let endPos = resumeText.indexOf('\n', fragPos)
           if (endPos === -1) endPos = resumeText.length
           pos = fragPos
@@ -262,7 +273,7 @@ export default function App() {
   ] : []
 
   function renderResumeText() {
-    if (!resumeText) return <p className="text-gray-400 italic">No resume text available.</p>
+    if (!resumeText) return <p className="text-gray-400 dark:text-gray-500 italic">No resume text available.</p>
 
     if (highlightRange) {
       const { start, end } = highlightRange
@@ -272,7 +283,7 @@ export default function App() {
       return (
         <>
           {before}
-          <mark className="bg-yellow-200 transition-colors duration-1000">{highlighted}</mark>
+          <mark className="bg-yellow-200 dark:bg-yellow-500/30 transition-colors duration-1000">{highlighted}</mark>
           {after}
         </>
       )
@@ -281,8 +292,10 @@ export default function App() {
     return resumeText
   }
 
+  const ringTrackColor = darkMode ? '#374151' : '#e5e7eb'
+
   return (
-    <div className="min-h-screen bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-slate-50 via-white to-indigo-50/30">
+    <div className={`min-h-screen bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-slate-50 via-white to-indigo-50/30 dark:from-gray-950 dark:via-gray-900 dark:to-indigo-950/30 ${darkMode ? 'dark' : ''}`}>
 
       {/* ── Header ── */}
       <header className="bg-slate-900 text-white py-5 px-6 shadow-lg">
@@ -305,6 +318,21 @@ export default function App() {
             <h1 className="text-2xl font-bold tracking-tight">JD-Match</h1>
             <p className="text-slate-400 text-sm">AI-powered resume alignment tool</p>
           </div>
+          <button
+            onClick={toggleDarkMode}
+            className="ml-auto p-2 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+            aria-label="Toggle dark mode"
+          >
+            {darkMode ? (
+              <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+              </svg>
+            ) : (
+              <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+              </svg>
+            )}
+          </button>
         </div>
       </header>
 
@@ -312,20 +340,20 @@ export default function App() {
 
         {/* ── Error Banner ── */}
         {error && (
-          <div className="flex items-start gap-3 bg-red-50 border border-red-200 text-red-800 rounded-xl px-4 py-3 mb-8">
-            <span className="text-red-500 text-lg mt-0.5 flex-shrink-0">⚠</span>
+          <div className="flex items-start gap-3 bg-red-50 dark:bg-red-950/50 border border-red-200 dark:border-red-800 text-red-800 dark:text-red-300 rounded-xl px-4 py-3 mb-8">
+            <span className="text-red-500 dark:text-red-400 text-lg mt-0.5 flex-shrink-0">⚠</span>
             <p className="text-sm leading-relaxed">{error}</p>
           </div>
         )}
 
-        {/* ── Input Card ── */}
+        {/* ── Input Card (Glassmorphism) ── */}
         {!results && (<>
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 mb-8">
+        <div className="bg-white/70 dark:bg-gray-800/70 backdrop-blur-xl rounded-2xl shadow-sm border border-white/20 dark:border-gray-700/50 p-6 mb-8">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
 
             {/* LEFT: PDF Drop Zone */}
             <div>
-              <label className="block text-sm font-semibold text-gray-700 mb-2">
+              <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
                 Resume (PDF)
               </label>
 
@@ -346,13 +374,13 @@ export default function App() {
                   className={[
                     'flex flex-col items-center justify-center gap-3 h-44 rounded-xl border-2 border-dashed cursor-pointer transition-colors select-none',
                     isDragOver
-                      ? 'border-indigo-400 bg-indigo-50'
-                      : 'border-gray-300 bg-gray-50 hover:border-indigo-300 hover:bg-indigo-50/40',
+                      ? 'border-indigo-400 bg-indigo-50 dark:bg-indigo-950/30'
+                      : 'border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-800/50 hover:border-indigo-300 dark:hover:border-indigo-500 hover:bg-indigo-50/40 dark:hover:bg-indigo-950/30',
                   ].join(' ')}
                 >
                   <svg
                     xmlns="http://www.w3.org/2000/svg"
-                    className="w-10 h-10 text-gray-400"
+                    className="w-10 h-10 text-gray-400 dark:text-gray-500"
                     fill="none"
                     viewBox="0 0 24 24"
                     stroke="currentColor"
@@ -365,27 +393,27 @@ export default function App() {
                     />
                   </svg>
                   <div className="text-center">
-                    <p className="text-sm text-gray-600">
-                      <span className="font-medium text-indigo-600">Click to browse</span>{' '}
+                    <p className="text-sm text-gray-600 dark:text-gray-400">
+                      <span className="font-medium text-indigo-600 dark:text-indigo-400">Click to browse</span>{' '}
                       or drag and drop
                     </p>
-                    <p className="text-xs text-gray-400 mt-1">PDF only</p>
+                    <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">PDF only</p>
                   </div>
                 </div>
               ) : (
-                <div className="flex items-center justify-between gap-4 h-44 rounded-xl border-2 border-green-200 bg-green-50 px-5">
+                <div className="flex items-center justify-between gap-4 h-44 rounded-xl border-2 border-green-200 dark:border-green-700 bg-green-50 dark:bg-green-950/50 px-5">
                   <div className="flex items-center gap-3 min-w-0">
-                    <div className="flex-shrink-0 w-10 h-10 bg-red-100 rounded-lg flex items-center justify-center">
-                      <span className="text-red-600 text-xs font-bold">PDF</span>
+                    <div className="flex-shrink-0 w-10 h-10 bg-red-100 dark:bg-red-900/50 rounded-lg flex items-center justify-center">
+                      <span className="text-red-600 dark:text-red-400 text-xs font-bold">PDF</span>
                     </div>
                     <div className="min-w-0">
-                      <p className="text-sm font-medium text-gray-800 truncate">{resumeFile.name}</p>
-                      <p className="text-xs text-gray-500">{formatBytes(resumeFile.size)}</p>
+                      <p className="text-sm font-medium text-gray-800 dark:text-gray-200 truncate">{resumeFile.name}</p>
+                      <p className="text-xs text-gray-500 dark:text-gray-400">{formatBytes(resumeFile.size)}</p>
                     </div>
                   </div>
                   <button
                     onClick={handleRemoveFile}
-                    className="flex-shrink-0 text-xs text-red-500 hover:text-red-700 font-medium border border-red-200 rounded-lg px-3 py-1.5 hover:bg-red-50 transition-colors"
+                    className="flex-shrink-0 text-xs text-red-500 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 font-medium border border-red-200 dark:border-red-700 rounded-lg px-3 py-1.5 hover:bg-red-50 dark:hover:bg-red-950/50 transition-colors"
                   >
                     Remove
                   </button>
@@ -397,7 +425,7 @@ export default function App() {
             <div>
               <label
                 htmlFor="jd-textarea"
-                className="block text-sm font-semibold text-gray-700 mb-2"
+                className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2"
               >
                 Job Description
               </label>
@@ -406,9 +434,9 @@ export default function App() {
                 value={jobDescription}
                 onChange={(e) => setJobDescription(e.target.value)}
                 placeholder="Paste the full job description here..."
-                className="w-full h-44 resize-none rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent shadow-inner transition"
+                className="w-full h-44 resize-none rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 px-4 py-3 text-sm text-gray-800 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent shadow-inner transition"
               />
-              <p className="text-xs text-gray-400 mt-1.5 text-right">
+              <p className="text-xs text-gray-400 dark:text-gray-500 mt-1.5 text-right">
                 {jobDescription.length} characters
               </p>
             </div>
@@ -473,7 +501,7 @@ export default function App() {
             >
               <button
                 onClick={handleStartOver}
-                className="flex items-center gap-2 text-sm font-medium text-slate-500 hover:text-indigo-600 transition-colors"
+                className="flex items-center gap-2 text-sm font-medium text-slate-500 dark:text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18" />
@@ -490,7 +518,7 @@ export default function App() {
                 Download PDF
               </button>
               {appliedRewrites.size > 0 && (
-                <span className="text-xs text-green-600 font-medium ml-auto">
+                <span className="text-xs text-green-600 dark:text-green-400 font-medium ml-auto">
                   {appliedRewrites.size} rewrite{appliedRewrites.size > 1 ? 's' : ''} applied
                 </span>
               )}
@@ -507,16 +535,16 @@ export default function App() {
               <div className="space-y-6 lg:max-h-[calc(100vh-160px)] lg:overflow-y-auto lg:pr-2 lg:sticky lg:top-6">
 
                 {/* Segmented Scores */}
-                <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+                <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 p-6">
                   <div className="flex items-center justify-between mb-4">
-                    <h2 className="text-lg font-semibold text-gray-700">Score Breakdown</h2>
+                    <h2 className="text-lg font-semibold text-gray-700 dark:text-gray-200">Score Breakdown</h2>
                     {results.confidence_rating != null && (
                       <span className={`text-xs font-semibold px-2.5 py-1 rounded-full border ${
                         results.confidence_rating >= 75
-                          ? 'bg-green-50 text-green-700 border-green-200'
+                          ? 'bg-green-50 dark:bg-green-950/50 text-green-700 dark:text-green-400 border-green-200 dark:border-green-800'
                           : results.confidence_rating >= 50
-                            ? 'bg-yellow-50 text-yellow-700 border-yellow-200'
-                            : 'bg-red-50 text-red-700 border-red-200'
+                            ? 'bg-yellow-50 dark:bg-yellow-950/50 text-yellow-700 dark:text-yellow-400 border-yellow-200 dark:border-yellow-800'
+                            : 'bg-red-50 dark:bg-red-950/50 text-red-700 dark:text-red-400 border-red-200 dark:border-red-800'
                       }`}>
                         {results.confidence_rating}% confidence
                       </span>
@@ -529,7 +557,7 @@ export default function App() {
                         <div key={key} className="flex flex-col items-center gap-2">
                           <div className="relative w-[80px] h-[80px]">
                             <svg width="80" height="80" viewBox="0 0 96 96">
-                              <circle cx="48" cy="48" r={RADIUS} fill="none" stroke="#e5e7eb" strokeWidth="8" />
+                              <circle cx="48" cy="48" r={RADIUS} fill="none" stroke={ringTrackColor} strokeWidth="8" />
                               <circle
                                 cx="48" cy="48" r={RADIUS}
                                 fill="none"
@@ -548,7 +576,7 @@ export default function App() {
                               </span>
                             </div>
                           </div>
-                          <span className="text-xs font-semibold text-gray-500 text-center">{label}</span>
+                          <span className="text-xs font-semibold text-gray-500 dark:text-gray-400 text-center">{label}</span>
                         </div>
                       )
                     })}
@@ -556,13 +584,13 @@ export default function App() {
                 </div>
 
                 {/* Keyword Gaps */}
-                <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
-                  <h2 className="text-lg font-semibold text-gray-700 mb-1">Keyword Gaps</h2>
-                  <p className="text-sm text-gray-400 mb-4">
+                <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 p-6">
+                  <h2 className="text-lg font-semibold text-gray-700 dark:text-gray-200 mb-1">Keyword Gaps</h2>
+                  <p className="text-sm text-gray-400 dark:text-gray-500 mb-4">
                     Keywords from the job description not found in your resume.
                   </p>
                   {results.missing_keywords.length === 0 ? (
-                    <p className="text-sm text-green-600 font-medium">
+                    <p className="text-sm text-green-600 dark:text-green-400 font-medium">
                       No missing keywords — great coverage!
                     </p>
                   ) : (
@@ -570,7 +598,7 @@ export default function App() {
                       {results.missing_keywords.map((keyword, i) => (
                         <span
                           key={i}
-                          className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-rose-100 text-rose-700 border border-rose-200"
+                          className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-rose-100 dark:bg-rose-950/50 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-800"
                         >
                           <span className="text-rose-400">✕</span>
                           {keyword}
@@ -582,9 +610,9 @@ export default function App() {
 
                 {/* Hallucination Check */}
                 {results.hallucination_check?.length > 0 && (
-                  <div className="bg-amber-50 rounded-2xl border border-amber-200 p-6">
-                    <h2 className="text-lg font-semibold text-amber-800 mb-1">Unverified Skills</h2>
-                    <p className="text-sm text-amber-600 mb-4">
+                  <div className="bg-amber-50 dark:bg-amber-950/30 rounded-2xl border border-amber-200 dark:border-amber-800 p-6">
+                    <h2 className="text-lg font-semibold text-amber-800 dark:text-amber-200 mb-1">Unverified Skills</h2>
+                    <p className="text-sm text-amber-600 dark:text-amber-400 mb-4">
                       Skills suspected from context but not explicitly proven in your resume.
                     </p>
                     <div className="space-y-3">
@@ -592,8 +620,8 @@ export default function App() {
                         <div key={i} className="flex items-start gap-3">
                           <span className="text-amber-400 mt-0.5 flex-shrink-0">?</span>
                           <div>
-                            <span className="text-sm font-semibold text-amber-900">{item.skill}</span>
-                            <p className="text-xs text-amber-700 leading-relaxed">{item.reason}</p>
+                            <span className="text-sm font-semibold text-amber-900 dark:text-amber-200">{item.skill}</span>
+                            <p className="text-xs text-amber-700 dark:text-amber-300 leading-relaxed">{item.reason}</p>
                           </div>
                         </div>
                       ))}
@@ -602,8 +630,8 @@ export default function App() {
                 )}
 
                 {/* Smart Rewrites */}
-                <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
-                  <h2 className="text-lg font-semibold text-gray-700 mb-4">Smart Rewrites</h2>
+                <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 p-6">
+                  <h2 className="text-lg font-semibold text-gray-700 dark:text-gray-200 mb-4">Smart Rewrites</h2>
                   <div className="space-y-4">
                     {results.rewrites.map((rewrite, i) => {
                       const isApplied = appliedRewrites.has(i)
@@ -613,15 +641,15 @@ export default function App() {
                           className={[
                             'rounded-xl border p-5 space-y-4 transition-colors',
                             isApplied
-                              ? 'border-green-200 bg-green-50/50'
-                              : 'border-gray-100 bg-gray-50',
+                              ? 'border-green-200 dark:border-green-800 bg-green-50/50 dark:bg-green-950/30'
+                              : 'border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50',
                           ].join(' ')}
                         >
                           <div>
-                            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1">
+                            <p className="text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-1">
                               Current
                             </p>
-                            <p className="text-sm text-gray-600 leading-relaxed">{rewrite.original}</p>
+                            <p className="text-sm text-gray-600 dark:text-gray-300 leading-relaxed">{rewrite.original}</p>
                           </div>
 
                           <div className="flex items-center gap-2">
@@ -631,16 +659,16 @@ export default function App() {
                             </span>
                           </div>
 
-                          <div className="rounded-lg bg-indigo-50 border border-indigo-100 px-4 py-3">
-                            <p className="text-sm text-indigo-900 leading-relaxed font-medium">
+                          <div className="rounded-lg bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-100 dark:border-indigo-800 px-4 py-3">
+                            <p className="text-sm text-indigo-900 dark:text-indigo-200 leading-relaxed font-medium">
                               {rewrite.suggested}
                             </p>
                           </div>
 
                           <div className="flex items-start gap-2">
                             <span className="text-amber-500 text-sm mt-0.5 flex-shrink-0">ℹ</span>
-                            <p className="text-xs text-gray-500 leading-relaxed">
-                              <span className="font-semibold text-gray-600">Why: </span>
+                            <p className="text-xs text-gray-500 dark:text-gray-400 leading-relaxed">
+                              <span className="font-semibold text-gray-600 dark:text-gray-300">Why: </span>
                               {rewrite.why}
                             </p>
                           </div>
@@ -652,7 +680,7 @@ export default function App() {
                               className={[
                                 'text-xs font-semibold px-4 py-2 rounded-lg border transition-all',
                                 isApplied
-                                  ? 'bg-green-50 text-green-600 border-green-200 cursor-default'
+                                  ? 'bg-green-50 dark:bg-green-950/50 text-green-600 dark:text-green-400 border-green-200 dark:border-green-800 cursor-default'
                                   : 'bg-indigo-600 text-white border-indigo-600 hover:bg-indigo-700 hover:border-indigo-700',
                               ].join(' ')}
                             >
@@ -666,11 +694,11 @@ export default function App() {
                 </div>
 
                 {/* AI Summary */}
-                <div className="bg-indigo-50 border border-indigo-100 rounded-2xl p-6">
+                <div className="bg-indigo-50 dark:bg-indigo-950/30 border border-indigo-100 dark:border-indigo-800 rounded-2xl p-6">
                   <div className="flex items-start gap-3">
                     <svg
                       xmlns="http://www.w3.org/2000/svg"
-                      className="w-5 h-5 text-indigo-500 mt-0.5 flex-shrink-0"
+                      className="w-5 h-5 text-indigo-500 dark:text-indigo-400 mt-0.5 flex-shrink-0"
                       fill="none"
                       viewBox="0 0 24 24"
                       stroke="currentColor"
@@ -683,8 +711,8 @@ export default function App() {
                       />
                     </svg>
                     <div>
-                      <h2 className="text-sm font-semibold text-indigo-700 mb-1">AI Summary</h2>
-                      <p className="text-sm text-indigo-900 leading-relaxed">{results.summary}</p>
+                      <h2 className="text-sm font-semibold text-indigo-700 dark:text-indigo-300 mb-1">AI Summary</h2>
+                      <p className="text-sm text-indigo-900 dark:text-indigo-200 leading-relaxed">{results.summary}</p>
                     </div>
                   </div>
                 </div>
@@ -692,16 +720,16 @@ export default function App() {
 
               {/* ── RIGHT PANEL: Live Resume ── */}
               <div className="lg:sticky lg:top-6">
-                <div className="bg-white rounded-2xl shadow-lg border border-gray-200 overflow-hidden">
-                  <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 bg-gray-50">
+                <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
+                  <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-gray-900">
                     <div className="flex items-center gap-2">
-                      <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+                      <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5 text-slate-500 dark:text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
                         <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
                       </svg>
-                      <h2 className="text-sm font-semibold text-gray-700">Live Resume</h2>
+                      <h2 className="text-sm font-semibold text-gray-700 dark:text-gray-200">Live Resume</h2>
                     </div>
                     {appliedRewrites.size > 0 && (
-                      <span className="text-xs text-amber-600 font-medium bg-amber-50 px-2 py-1 rounded-md border border-amber-200">
+                      <span className="text-xs text-amber-600 dark:text-amber-400 font-medium bg-amber-50 dark:bg-amber-950/50 px-2 py-1 rounded-md border border-amber-200 dark:border-amber-800">
                         Edited
                       </span>
                     )}
@@ -711,7 +739,7 @@ export default function App() {
                     ref={liveResumeRef}
                     className="px-8 py-6 max-h-[calc(100vh-220px)] overflow-y-auto"
                   >
-                    <div className="whitespace-pre-wrap text-sm text-gray-800 leading-relaxed font-[Georgia,_serif]">
+                    <div className="whitespace-pre-wrap text-sm text-gray-800 dark:text-gray-200 leading-relaxed font-[Georgia,_serif]">
                       {renderResumeText()}
                     </div>
                   </div>
