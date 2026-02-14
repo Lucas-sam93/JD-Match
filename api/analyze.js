@@ -1,6 +1,9 @@
-import multer from 'multer'
-import pdf from 'pdf-parse/lib/pdf-parse.js'
+import { createRequire } from 'node:module'
 import { GoogleGenerativeAI } from '@google/generative-ai'
+
+const require = createRequire(import.meta.url)
+const multer = require('multer')
+const pdf = require('pdf-parse/lib/pdf-parse.js')
 
 const upload = multer({ storage: multer.memoryStorage() })
 
