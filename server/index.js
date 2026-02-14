@@ -1,9 +1,11 @@
 import 'dotenv/config'
+import { createRequire } from 'module'
 import express from 'express'
 import cors from 'cors'
 import multer from 'multer'
-import pdf from 'pdf-parse'
 import Anthropic from '@anthropic-ai/sdk'
+
+const pdf = createRequire(import.meta.url)('pdf-parse')
 
 const app = express()
 const PORT = process.env.PORT || 3001
