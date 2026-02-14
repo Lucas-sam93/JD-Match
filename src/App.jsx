@@ -1,7 +1,6 @@
-import { useState, useRef } from 'react'
+import { useState, useRef, useCallback } from 'react'
 import { jsPDF } from 'jspdf'
 
-// Use environment variable for production, fallback to relative path for dev (proxy handles it)
 const BASE_URL = import.meta.env.PROD
   ? (import.meta.env.VITE_API_URL || '')
   : ''
@@ -33,9 +32,14 @@ export default function App() {
   const [isLoading, setIsLoading] = useState(false)
   const [results, setResults] = useState(null)
   const [error, setError] = useState(null)
-  const [copiedIndex, setCopiedIndex] = useState(null)
   const [isDragOver, setIsDragOver] = useState(false)
   const fileInputRef = useRef(null)
+
+  // Refinement Suite state
+  const [resumeText, setResumeText] = useState('')
+  const [appliedRewrites, setAppliedRewrites] = useState(new Set())
+  const [highlightRange, setHighlightRange] = useState(null)
+  const liveResumeRef = useRef(null)
 
   function handleFileSelect(file) {
     if (!file) return
@@ -76,101 +80,63 @@ export default function App() {
     setError(null)
     setResumeFile(null)
     setJobDescription('')
-    setCopiedIndex(null)
+    setResumeText('')
+    setAppliedRewrites(new Set())
+    setHighlightRange(null)
     if (fileInputRef.current) fileInputRef.current.value = ''
   }
 
-  async function handleCopy(text, index) {
-    try {
-      await navigator.clipboard.writeText(text)
-      setCopiedIndex(index)
-      setTimeout(() => setCopiedIndex(null), 2000)
-    } catch {
-      // clipboard unavailable — silent fail
+  const handleApplyRewrite = useCallback((index) => {
+    if (!results) return
+    const { original, suggested } = results.rewrites[index]
+
+    const pos = resumeText.indexOf(original)
+    if (pos === -1) {
+      setError(`Could not find the original text in your resume to replace. It may have already been modified.`)
+      return
     }
-  }
+
+    const newText = resumeText.slice(0, pos) + suggested + resumeText.slice(pos + original.length)
+    setResumeText(newText)
+    setAppliedRewrites(prev => new Set(prev).add(index))
+    setError(null)
+
+    setHighlightRange({ start: pos, end: pos + suggested.length })
+    setTimeout(() => setHighlightRange(null), 1500)
+
+    // Scroll the live resume to show the replaced text after React re-renders
+    setTimeout(() => {
+      if (liveResumeRef.current) {
+        const mark = liveResumeRef.current.querySelector('mark')
+        if (mark) {
+          mark.scrollIntoView({ behavior: 'smooth', block: 'center' })
+        }
+      }
+    }, 50)
+  }, [results, resumeText])
 
   function handleDownloadPDF() {
-    if (!results) return
+    if (!resumeText) return
     const doc = new jsPDF()
     const margin = 20
     const pageWidth = doc.internal.pageSize.getWidth() - margin * 2
+    const pageHeight = doc.internal.pageSize.getHeight() - margin
     let y = margin
 
-    function checkPage(needed = 12) {
-      if (y + needed > doc.internal.pageSize.getHeight() - margin) {
+    doc.setFontSize(10)
+    doc.setTextColor(50, 50, 50)
+
+    const lines = doc.splitTextToSize(resumeText, pageWidth)
+    for (const line of lines) {
+      if (y + 5 > pageHeight) {
         doc.addPage()
         y = margin
       }
+      doc.text(line, margin, y)
+      y += 5
     }
 
-    function writeWrapped(text, fontSize = 10, color = [50, 50, 50]) {
-      doc.setFontSize(fontSize)
-      doc.setTextColor(...color)
-      const lines = doc.splitTextToSize(text, pageWidth)
-      for (const line of lines) {
-        checkPage()
-        doc.text(line, margin, y)
-        y += fontSize * 0.5
-      }
-    }
-
-    // Title
-    doc.setFontSize(20)
-    doc.setTextColor(55, 48, 163)
-    doc.text('JD-Match — Optimized Resume Report', margin, y)
-    y += 14
-
-    // Score
-    doc.setFontSize(14)
-    doc.setTextColor(30, 30, 30)
-    doc.text(`Match Score: ${results.score} / 100`, margin, y)
-    y += 12
-
-    // Missing Keywords
-    if (results.missing_keywords.length > 0) {
-      doc.setFontSize(13)
-      doc.setTextColor(30, 30, 30)
-      doc.text('Missing Keywords', margin, y)
-      y += 8
-      writeWrapped(results.missing_keywords.join(', '))
-      y += 6
-    }
-
-    // Rewrites
-    doc.setFontSize(13)
-    doc.setTextColor(30, 30, 30)
-    checkPage(20)
-    doc.text('Smart Rewrites', margin, y)
-    y += 8
-
-    results.rewrites.forEach((rewrite, i) => {
-      checkPage(30)
-      doc.setFontSize(11)
-      doc.setTextColor(100, 100, 100)
-      doc.text(`${i + 1}. Original:`, margin, y)
-      y += 6
-      writeWrapped(rewrite.original, 10, [80, 80, 80])
-      y += 4
-
-      checkPage(15)
-      doc.setFontSize(11)
-      doc.setTextColor(55, 48, 163)
-      doc.text('Suggested:', margin, y)
-      y += 6
-      writeWrapped(rewrite.suggested, 10, [30, 30, 120])
-      y += 8
-    })
-
-    // Summary
-    checkPage(20)
-    doc.setFontSize(13)
-    doc.setTextColor(30, 30, 30)
-    doc.text('AI Summary', margin, y)
-    y += 8
-    writeWrapped(results.summary)
-
-    doc.save('jd-match-report.pdf')
+    doc.save('refined-resume.pdf')
   }
 
   async function handleSubmit() {
@@ -185,6 +151,9 @@ export default function App() {
 
     setError(null)
     setResults(null)
+    setResumeText('')
+    setAppliedRewrites(new Set())
+    setHighlightRange(null)
     setIsLoading(true)
 
     try {
@@ -195,8 +164,6 @@ export default function App() {
       const response = await fetch(`${BASE_URL}/api/analyze`, {
         method: 'POST',
         body: formData,
-        // NOTE: Do NOT set Content-Type manually.
-        // fetch sets it automatically with the correct multipart boundary.
       })
 
       const text = await response.text()
@@ -212,6 +179,7 @@ export default function App() {
       }
 
       setResults(data)
+      setResumeText(data.resumeText || '')
     } catch (err) {
       setError(err.message || 'Network error. Please try again.')
     } finally {
@@ -223,12 +191,32 @@ export default function App() {
     ? CIRCUMFERENCE * (1 - results.score / 100)
     : CIRCUMFERENCE
 
+  function renderResumeText() {
+    if (!resumeText) return <p className="text-gray-400 italic">No resume text available.</p>
+
+    if (highlightRange) {
+      const { start, end } = highlightRange
+      const before = resumeText.slice(0, start)
+      const highlighted = resumeText.slice(start, end)
+      const after = resumeText.slice(end)
+      return (
+        <>
+          {before}
+          <mark className="bg-yellow-200 transition-colors duration-1000">{highlighted}</mark>
+          {after}
+        </>
+      )
+    }
+
+    return resumeText
+  }
+
   return (
     <div className="min-h-screen bg-gray-50">
 
       {/* ── Header ── */}
       <header className="bg-slate-900 text-white py-5 px-6 shadow-lg">
-        <div className="max-w-4xl mx-auto flex items-center gap-3">
+        <div className={`mx-auto flex items-center gap-3 ${results ? 'max-w-7xl' : 'max-w-4xl'}`}>
           <svg
             xmlns="http://www.w3.org/2000/svg"
             className="w-8 h-8 text-indigo-400 flex-shrink-0"
@@ -250,11 +238,11 @@ export default function App() {
         </div>
       </header>
 
-      <main className="max-w-4xl mx-auto px-4 py-10 space-y-8">
+      <main className={`mx-auto px-4 py-10 ${results ? 'max-w-7xl' : 'max-w-4xl'}`}>
 
         {/* ── Error Banner ── */}
         {error && (
-          <div className="flex items-start gap-3 bg-red-50 border border-red-200 text-red-800 rounded-xl px-4 py-3">
+          <div className="flex items-start gap-3 bg-red-50 border border-red-200 text-red-800 rounded-xl px-4 py-3 mb-8">
             <span className="text-red-500 text-lg mt-0.5 flex-shrink-0">⚠</span>
             <p className="text-sm leading-relaxed">{error}</p>
           </div>
@@ -262,7 +250,7 @@ export default function App() {
 
         {/* ── Input Card ── */}
         {!results && (<>
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 mb-8">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
 
             {/* LEFT: PDF Drop Zone */}
@@ -398,11 +386,11 @@ export default function App() {
         </button>
         </>)}
 
-        {/* ── Results ── */}
+        {/* ── Refinement Suite ── */}
         {results && (
           <div className="space-y-6">
 
-            {/* Actions */}
+            {/* Action Bar */}
             <div className="flex items-center gap-4">
               <button
                 onClick={handleStartOver}
@@ -422,166 +410,194 @@ export default function App() {
                 </svg>
                 Download PDF
               </button>
-            </div>
-
-            {/* Score Card */}
-            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8 flex flex-col items-center gap-4">
-              <h2 className="text-lg font-semibold text-gray-700">Match Score</h2>
-
-              <div className="relative w-[140px] h-[140px]">
-                <svg width="140" height="140" viewBox="0 0 140 140">
-                  {/* Track */}
-                  <circle
-                    cx="70"
-                    cy="70"
-                    r={RADIUS}
-                    fill="none"
-                    stroke="#e5e7eb"
-                    strokeWidth="12"
-                  />
-                  {/* Progress arc */}
-                  <circle
-                    cx="70"
-                    cy="70"
-                    r={RADIUS}
-                    fill="none"
-                    stroke={getStrokeColor(results.score)}
-                    strokeWidth="12"
-                    strokeLinecap="round"
-                    strokeDasharray={CIRCUMFERENCE}
-                    strokeDashoffset={scoreOffset}
-                    transform="rotate(-90 70 70)"
-                    style={{ transition: 'stroke-dashoffset 0.8s ease-out' }}
-                  />
-                </svg>
-                <div className="absolute inset-0 flex flex-col items-center justify-center">
-                  <span className={`text-4xl font-bold ${getScoreColor(results.score)}`}>
-                    {results.score}
-                  </span>
-                  <span className="text-xs text-gray-400 mt-0.5">/ 100</span>
-                </div>
-              </div>
-
-              <p className={`text-sm font-medium ${getScoreColor(results.score)}`}>
-                {results.score >= 75
-                  ? 'Strong Match'
-                  : results.score >= 50
-                  ? 'Moderate Match'
-                  : 'Weak Match'}
-              </p>
-            </div>
-
-            {/* Keyword Gaps */}
-            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
-              <h2 className="text-lg font-semibold text-gray-700 mb-1">Keyword Gaps</h2>
-              <p className="text-sm text-gray-400 mb-4">
-                Keywords from the job description not found in your resume.
-              </p>
-
-              {results.missing_keywords.length === 0 ? (
-                <p className="text-sm text-green-600 font-medium">
-                  ✓ No missing keywords — great coverage!
-                </p>
-              ) : (
-                <div className="flex flex-wrap gap-2">
-                  {results.missing_keywords.map((keyword, i) => (
-                    <span
-                      key={i}
-                      className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-rose-100 text-rose-700 border border-rose-200"
-                    >
-                      <span>✕</span>
-                      {keyword}
-                    </span>
-                  ))}
-                </div>
+              {appliedRewrites.size > 0 && (
+                <span className="text-xs text-green-600 font-medium ml-auto">
+                  {appliedRewrites.size} rewrite{appliedRewrites.size > 1 ? 's' : ''} applied
+                </span>
               )}
             </div>
 
-            {/* Smart Rewrites */}
-            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
-              <h2 className="text-lg font-semibold text-gray-700 mb-4">Smart Rewrites</h2>
+            {/* Two-Column Layout */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
 
-              <div className="space-y-4">
-                {results.rewrites.map((rewrite, i) => (
-                  <div
-                    key={i}
-                    className="rounded-xl border border-gray-100 bg-gray-50 p-5 space-y-4"
-                  >
-                    {/* Original */}
-                    <div>
-                      <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1">
-                        Current
-                      </p>
-                      <p className="text-sm text-gray-600 leading-relaxed">{rewrite.original}</p>
-                    </div>
+              {/* ── LEFT PANEL: Analysis ── */}
+              <div className="space-y-6 lg:max-h-[calc(100vh-160px)] lg:overflow-y-auto lg:pr-2 lg:sticky lg:top-6">
 
-                    {/* Arrow separator */}
-                    <div className="flex items-center gap-2">
-                      <span className="text-xl text-indigo-400 leading-none">↓</span>
-                      <span className="text-xs font-semibold text-indigo-400 uppercase tracking-wider">
-                        AI Suggested
+                {/* Score Card (Compact) */}
+                <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 flex items-center gap-6">
+                  <div className="relative w-[100px] h-[100px] flex-shrink-0">
+                    <svg width="100" height="100" viewBox="0 0 140 140">
+                      <circle cx="70" cy="70" r={RADIUS} fill="none" stroke="#e5e7eb" strokeWidth="12" />
+                      <circle
+                        cx="70" cy="70" r={RADIUS}
+                        fill="none"
+                        stroke={getStrokeColor(results.score)}
+                        strokeWidth="12"
+                        strokeLinecap="round"
+                        strokeDasharray={CIRCUMFERENCE}
+                        strokeDashoffset={scoreOffset}
+                        transform="rotate(-90 70 70)"
+                        style={{ transition: 'stroke-dashoffset 0.8s ease-out' }}
+                      />
+                    </svg>
+                    <div className="absolute inset-0 flex flex-col items-center justify-center">
+                      <span className={`text-2xl font-bold ${getScoreColor(results.score)}`}>
+                        {results.score}
                       </span>
-                    </div>
-
-                    {/* Suggested */}
-                    <div className="rounded-lg bg-indigo-50 border border-indigo-100 px-4 py-3">
-                      <p className="text-sm text-indigo-900 leading-relaxed font-medium">
-                        {rewrite.suggested}
-                      </p>
-                    </div>
-
-                    {/* Why */}
-                    <div className="flex items-start gap-2">
-                      <span className="text-amber-500 text-sm mt-0.5 flex-shrink-0">ℹ</span>
-                      <p className="text-xs text-gray-500 leading-relaxed">
-                        <span className="font-semibold text-gray-600">Why: </span>
-                        {rewrite.why}
-                      </p>
-                    </div>
-
-                    {/* Copy button */}
-                    <div className="flex justify-end">
-                      <button
-                        onClick={() => handleCopy(rewrite.suggested, i)}
-                        className={[
-                          'text-xs font-semibold px-4 py-2 rounded-lg border transition-all',
-                          copiedIndex === i
-                            ? 'bg-green-50 text-green-600 border-green-200'
-                            : 'bg-white text-gray-600 border-gray-200 hover:bg-indigo-50 hover:text-indigo-600 hover:border-indigo-200',
-                        ].join(' ')}
-                      >
-                        {copiedIndex === i ? '✓ Copied!' : 'Copy'}
-                      </button>
+                      <span className="text-[10px] text-gray-400">/ 100</span>
                     </div>
                   </div>
-                ))}
-              </div>
-            </div>
+                  <div>
+                    <h2 className="text-lg font-semibold text-gray-700">Match Score</h2>
+                    <p className={`text-sm font-medium ${getScoreColor(results.score)}`}>
+                      {results.score >= 75 ? 'Strong Match' : results.score >= 50 ? 'Moderate Match' : 'Weak Match'}
+                    </p>
+                  </div>
+                </div>
 
-            {/* Summary Callout */}
-            <div className="bg-indigo-50 border border-indigo-100 rounded-2xl p-6">
-              <div className="flex items-start gap-3">
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  className="w-5 h-5 text-indigo-500 mt-0.5 flex-shrink-0"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                  strokeWidth={1.8}
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"
-                  />
-                </svg>
-                <div>
-                  <h2 className="text-sm font-semibold text-indigo-700 mb-1">AI Summary</h2>
-                  <p className="text-sm text-indigo-900 leading-relaxed">{results.summary}</p>
+                {/* Keyword Gaps */}
+                <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+                  <h2 className="text-lg font-semibold text-gray-700 mb-1">Keyword Gaps</h2>
+                  <p className="text-sm text-gray-400 mb-4">
+                    Keywords from the job description not found in your resume.
+                  </p>
+                  {results.missing_keywords.length === 0 ? (
+                    <p className="text-sm text-green-600 font-medium">
+                      No missing keywords — great coverage!
+                    </p>
+                  ) : (
+                    <div className="flex flex-wrap gap-2">
+                      {results.missing_keywords.map((keyword, i) => (
+                        <span
+                          key={i}
+                          className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-rose-100 text-rose-700 border border-rose-200"
+                        >
+                          <span className="text-rose-400">✕</span>
+                          {keyword}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* Smart Rewrites */}
+                <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+                  <h2 className="text-lg font-semibold text-gray-700 mb-4">Smart Rewrites</h2>
+                  <div className="space-y-4">
+                    {results.rewrites.map((rewrite, i) => {
+                      const isApplied = appliedRewrites.has(i)
+                      return (
+                        <div
+                          key={i}
+                          className={[
+                            'rounded-xl border p-5 space-y-4 transition-colors',
+                            isApplied
+                              ? 'border-green-200 bg-green-50/50'
+                              : 'border-gray-100 bg-gray-50',
+                          ].join(' ')}
+                        >
+                          <div>
+                            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1">
+                              Current
+                            </p>
+                            <p className="text-sm text-gray-600 leading-relaxed">{rewrite.original}</p>
+                          </div>
+
+                          <div className="flex items-center gap-2">
+                            <span className="text-xl text-indigo-400 leading-none">↓</span>
+                            <span className="text-xs font-semibold text-indigo-400 uppercase tracking-wider">
+                              AI Suggested
+                            </span>
+                          </div>
+
+                          <div className="rounded-lg bg-indigo-50 border border-indigo-100 px-4 py-3">
+                            <p className="text-sm text-indigo-900 leading-relaxed font-medium">
+                              {rewrite.suggested}
+                            </p>
+                          </div>
+
+                          <div className="flex items-start gap-2">
+                            <span className="text-amber-500 text-sm mt-0.5 flex-shrink-0">ℹ</span>
+                            <p className="text-xs text-gray-500 leading-relaxed">
+                              <span className="font-semibold text-gray-600">Why: </span>
+                              {rewrite.why}
+                            </p>
+                          </div>
+
+                          <div className="flex justify-end">
+                            <button
+                              onClick={() => handleApplyRewrite(i)}
+                              disabled={isApplied}
+                              className={[
+                                'text-xs font-semibold px-4 py-2 rounded-lg border transition-all',
+                                isApplied
+                                  ? 'bg-green-50 text-green-600 border-green-200 cursor-default'
+                                  : 'bg-indigo-600 text-white border-indigo-600 hover:bg-indigo-700 hover:border-indigo-700',
+                              ].join(' ')}
+                            >
+                              {isApplied ? 'Applied ✓' : 'Apply to Resume →'}
+                            </button>
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+
+                {/* AI Summary */}
+                <div className="bg-indigo-50 border border-indigo-100 rounded-2xl p-6">
+                  <div className="flex items-start gap-3">
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      className="w-5 h-5 text-indigo-500 mt-0.5 flex-shrink-0"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                      strokeWidth={1.8}
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"
+                      />
+                    </svg>
+                    <div>
+                      <h2 className="text-sm font-semibold text-indigo-700 mb-1">AI Summary</h2>
+                      <p className="text-sm text-indigo-900 leading-relaxed">{results.summary}</p>
+                    </div>
+                  </div>
                 </div>
               </div>
-            </div>
 
+              {/* ── RIGHT PANEL: Live Resume ── */}
+              <div className="lg:sticky lg:top-6">
+                <div className="bg-white rounded-2xl shadow-lg border border-gray-200 overflow-hidden">
+                  <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 bg-gray-50">
+                    <div className="flex items-center gap-2">
+                      <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
+                      </svg>
+                      <h2 className="text-sm font-semibold text-gray-700">Live Resume</h2>
+                    </div>
+                    {appliedRewrites.size > 0 && (
+                      <span className="text-xs text-amber-600 font-medium bg-amber-50 px-2 py-1 rounded-md border border-amber-200">
+                        Edited
+                      </span>
+                    )}
+                  </div>
+
+                  <div
+                    ref={liveResumeRef}
+                    className="px-8 py-6 max-h-[calc(100vh-220px)] overflow-y-auto"
+                  >
+                    <div className="whitespace-pre-wrap text-sm text-gray-800 leading-relaxed font-[Georgia,_serif]">
+                      {renderResumeText()}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+            </div>
           </div>
         )}
       </main>

@@ -103,7 +103,7 @@ export default async function handler(req, res) {
     )
 
     const analysis = JSON.parse(result.response.text())
-    res.json(analysis)
+    res.json({ ...analysis, resumeText })
   } catch (err) {
     console.error(err)
 
