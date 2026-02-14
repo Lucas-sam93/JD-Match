@@ -65,6 +65,15 @@ export default function App() {
     if (fileInputRef.current) fileInputRef.current.value = ''
   }
 
+  function handleStartOver() {
+    setResults(null)
+    setError(null)
+    setResumeFile(null)
+    setJobDescription('')
+    setCopiedIndex(null)
+    if (fileInputRef.current) fileInputRef.current.value = ''
+  }
+
   async function handleCopy(text, index) {
     try {
       await navigator.clipboard.writeText(text)
@@ -157,6 +166,7 @@ export default function App() {
         )}
 
         {/* ── Input Card ── */}
+        {!results && (<>
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
 
@@ -291,10 +301,22 @@ export default function App() {
             'Match My Resume'
           )}
         </button>
+        </>)}
 
         {/* ── Results ── */}
         {results && (
           <div className="space-y-6">
+
+            {/* Start Over */}
+            <button
+              onClick={handleStartOver}
+              className="flex items-center gap-2 text-sm font-medium text-slate-500 hover:text-indigo-600 transition-colors"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18" />
+              </svg>
+              Start Over
+            </button>
 
             {/* Score Card */}
             <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8 flex flex-col items-center gap-4">
