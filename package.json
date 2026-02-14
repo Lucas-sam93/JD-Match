@@ -13,6 +13,7 @@
   "dependencies": {
     "@google/generative-ai": "^0.24.1",
     "formidable": "^3.5.4",
+    "framer-motion": "^12.34.0",
     "jspdf": "^4.1.0",
     "multer": "^2.0.2",
     "pdf-parse": "^1.1.4",

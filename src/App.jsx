@@ -1,4 +1,5 @@
 import { useState, useRef, useCallback } from 'react'
+import { motion } from 'framer-motion'
 import { jsPDF } from 'jspdf'
 
 const BASE_URL = import.meta.env.PROD
@@ -281,7 +282,7 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-slate-50 via-white to-indigo-50/30">
 
       {/* ── Header ── */}
       <header className="bg-slate-900 text-white py-5 px-6 shadow-lg">
@@ -405,7 +406,7 @@ export default function App() {
                 value={jobDescription}
                 onChange={(e) => setJobDescription(e.target.value)}
                 placeholder="Paste the full job description here..."
-                className="w-full h-44 resize-none rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:border-transparent transition"
+                className="w-full h-44 resize-none rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent shadow-inner transition"
               />
               <p className="text-xs text-gray-400 mt-1.5 text-right">
                 {jobDescription.length} characters
@@ -419,10 +420,10 @@ export default function App() {
           onClick={handleSubmit}
           disabled={isLoading}
           className={[
-            'w-full py-4 rounded-2xl text-white font-semibold text-base tracking-wide transition-all',
+            'w-full py-4 rounded-2xl text-white font-semibold text-base tracking-wide transition-all duration-200',
             isLoading
               ? 'bg-indigo-400 cursor-not-allowed'
-              : 'bg-indigo-600 hover:bg-indigo-700 active:scale-[0.99] shadow-md hover:shadow-lg',
+              : 'bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 hover:scale-[1.02] active:scale-[0.99] shadow-md hover:shadow-lg',
           ].join(' ')}
         >
           {isLoading ? (
@@ -457,10 +458,19 @@ export default function App() {
 
         {/* ── Refinement Suite ── */}
         {results && (
-          <div className="space-y-6">
+          <motion.div
+            className="space-y-6"
+            initial="hidden"
+            animate="visible"
+            variants={{ visible: { transition: { staggerChildren: 0.1 } } }}
+          >
 
             {/* Action Bar */}
-            <div className="flex items-center gap-4">
+            <motion.div
+              className="flex items-center gap-4"
+              variants={{ hidden: { opacity: 0, y: 20 }, visible: { opacity: 1, y: 0 } }}
+              transition={{ duration: 0.4 }}
+            >
               <button
                 onClick={handleStartOver}
                 className="flex items-center gap-2 text-sm font-medium text-slate-500 hover:text-indigo-600 transition-colors"
@@ -484,10 +494,14 @@ export default function App() {
                   {appliedRewrites.size} rewrite{appliedRewrites.size > 1 ? 's' : ''} applied
                 </span>
               )}
-            </div>
+            </motion.div>
 
             {/* Two-Column Layout */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
+            <motion.div
+              className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start"
+              variants={{ hidden: { opacity: 0, y: 20 }, visible: { opacity: 1, y: 0 } }}
+              transition={{ duration: 0.4 }}
+            >
 
               {/* ── LEFT PANEL: Analysis ── */}
               <div className="space-y-6 lg:max-h-[calc(100vh-160px)] lg:overflow-y-auto lg:pr-2 lg:sticky lg:top-6">
@@ -704,8 +718,8 @@ export default function App() {
                 </div>
               </div>
 
-            </div>
-          </div>
+            </motion.div>
+          </motion.div>
         )}
       </main>
     </div>
