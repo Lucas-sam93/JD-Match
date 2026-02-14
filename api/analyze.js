@@ -28,13 +28,15 @@ Provide a match score (0-100).
 
 Suggest 3 specific bullet point rewrites for the resume to better align with the job.
 
+CRITICAL: For each rewrite, the "original" field MUST be copied EXACTLY character-for-character from the Resume text provided. Do NOT paraphrase, summarize, or reword the original — paste the exact substring as it appears in the resume.
+
 JSON Schema:
 {
   "score": number,
   "summary": "string",
   "missing_keywords": ["string"],
   "rewrites": [
-    {"original": "string", "suggested": "string", "why": "string"}
+    {"original": "exact text copied from resume", "suggested": "string", "why": "string"}
   ]
 }`
 
