@@ -34,10 +34,8 @@ JSON Schema:
   ]
 }`
 
-// gemini-1.5-flash is retired from v1beta; gemini-2.0-flash-lite is the
-// lightest free-tier model with the most generous quota.
 const model = genAI.getGenerativeModel({
-  model: 'gemini-2.0-flash-lite',
+  model: 'gemini-2.5-flash',
   systemInstruction: SYSTEM_INSTRUCTION,
   generationConfig: {
     responseMimeType: 'application/json',
