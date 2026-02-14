@@ -5,7 +5,7 @@ const BASE_URL = import.meta.env.PROD
   ? (import.meta.env.VITE_API_URL || '')
   : ''
 
-const RADIUS = 54
+const RADIUS = 36
 const CIRCUMFERENCE = 2 * Math.PI * RADIUS
 
 function formatBytes(bytes) {
@@ -253,9 +253,11 @@ export default function App() {
     }
   }
 
-  const scoreOffset = results
-    ? CIRCUMFERENCE * (1 - results.score / 100)
-    : CIRCUMFERENCE
+  const scores = results ? [
+    { key: 'tech_match', label: 'Tech Match', value: results.tech_match },
+    { key: 'impact_match', label: 'Impact', value: results.impact_match },
+    { key: 'ats_compatibility', label: 'ATS Ready', value: results.ats_compatibility },
+  ] : []
 
   function renderResumeText() {
     if (!resumeText) return <p className="text-gray-400 italic">No resume text available.</p>
@@ -489,35 +491,39 @@ export default function App() {
               {/* ── LEFT PANEL: Analysis ── */}
               <div className="space-y-6 lg:max-h-[calc(100vh-160px)] lg:overflow-y-auto lg:pr-2 lg:sticky lg:top-6">
 
-                {/* Score Card (Compact) */}
-                <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 flex items-center gap-6">
-                  <div className="relative w-[100px] h-[100px] flex-shrink-0">
-                    <svg width="100" height="100" viewBox="0 0 140 140">
-                      <circle cx="70" cy="70" r={RADIUS} fill="none" stroke="#e5e7eb" strokeWidth="12" />
-                      <circle
-                        cx="70" cy="70" r={RADIUS}
-                        fill="none"
-                        stroke={getStrokeColor(results.score)}
-                        strokeWidth="12"
-                        strokeLinecap="round"
-                        strokeDasharray={CIRCUMFERENCE}
-                        strokeDashoffset={scoreOffset}
-                        transform="rotate(-90 70 70)"
-                        style={{ transition: 'stroke-dashoffset 0.8s ease-out' }}
-                      />
-                    </svg>
-                    <div className="absolute inset-0 flex flex-col items-center justify-center">
-                      <span className={`text-2xl font-bold ${getScoreColor(results.score)}`}>
-                        {results.score}
-                      </span>
-                      <span className="text-[10px] text-gray-400">/ 100</span>
-                    </div>
-                  </div>
-                  <div>
-                    <h2 className="text-lg font-semibold text-gray-700">Match Score</h2>
-                    <p className={`text-sm font-medium ${getScoreColor(results.score)}`}>
-                      {results.score >= 75 ? 'Strong Match' : results.score >= 50 ? 'Moderate Match' : 'Weak Match'}
-                    </p>
+                {/* Segmented Scores */}
+                <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+                  <h2 className="text-lg font-semibold text-gray-700 mb-4">Score Breakdown</h2>
+                  <div className="grid grid-cols-3 gap-4">
+                    {scores.map(({ key, label, value }) => {
+                      const offset = CIRCUMFERENCE * (1 - value / 100)
+                      return (
+                        <div key={key} className="flex flex-col items-center gap-2">
+                          <div className="relative w-[80px] h-[80px]">
+                            <svg width="80" height="80" viewBox="0 0 96 96">
+                              <circle cx="48" cy="48" r={RADIUS} fill="none" stroke="#e5e7eb" strokeWidth="8" />
+                              <circle
+                                cx="48" cy="48" r={RADIUS}
+                                fill="none"
+                                stroke={getStrokeColor(value)}
+                                strokeWidth="8"
+                                strokeLinecap="round"
+                                strokeDasharray={CIRCUMFERENCE}
+                                strokeDashoffset={offset}
+                                transform="rotate(-90 48 48)"
+                                style={{ transition: 'stroke-dashoffset 0.8s ease-out' }}
+                              />
+                            </svg>
+                            <div className="absolute inset-0 flex flex-col items-center justify-center">
+                              <span className={`text-lg font-bold ${getScoreColor(value)}`}>
+                                {value}
+                              </span>
+                            </div>
+                          </div>
+                          <span className="text-xs font-semibold text-gray-500 text-center">{label}</span>
+                        </div>
+                      )
+                    })}
                   </div>
                 </div>
 

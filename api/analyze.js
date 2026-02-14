@@ -24,7 +24,10 @@ Extract the top 10 most important hard skills from the Job Description.
 
 Compare them against the Resume text.
 
-Provide a match score (0-100).
+Provide three segmented scores (each 0-100):
+- tech_match: How well the resume's hard skills align with the job description's required skills.
+- impact_match: How strong the resume's action verbs, quantified results, and achievement statements are.
+- ats_compatibility: A check for ATS-unfriendly formatting (columns, tables, images, headers/footers, unusual fonts). 100 means fully ATS-compatible.
 
 Suggest 3 specific bullet point rewrites for the resume to better align with the job.
 
@@ -32,7 +35,9 @@ CRITICAL: For each rewrite, the "original" field MUST be copied EXACTLY characte
 
 JSON Schema:
 {
-  "score": number,
+  "tech_match": number,
+  "impact_match": number,
+  "ats_compatibility": number,
   "summary": "string",
   "missing_keywords": ["string"],
   "rewrites": [
