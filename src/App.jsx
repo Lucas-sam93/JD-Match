@@ -1,4 +1,10 @@
 import { useState, useRef } from 'react'
+import { jsPDF } from 'jspdf'
+
+// Use environment variable for production, fallback to relative path for dev (proxy handles it)
+const BASE_URL = import.meta.env.PROD
+  ? (import.meta.env.VITE_API_URL || '')
+  : ''
 
 const RADIUS = 54
 const CIRCUMFERENCE = 2 * Math.PI * RADIUS
@@ -84,6 +90,89 @@ export default function App() {
     }
   }
 
+  function handleDownloadPDF() {
+    if (!results) return
+    const doc = new jsPDF()
+    const margin = 20
+    const pageWidth = doc.internal.pageSize.getWidth() - margin * 2
+    let y = margin
+
+    function checkPage(needed = 12) {
+      if (y + needed > doc.internal.pageSize.getHeight() - margin) {
+        doc.addPage()
+        y = margin
+      }
+    }
+
+    function writeWrapped(text, fontSize = 10, color = [50, 50, 50]) {
+      doc.setFontSize(fontSize)
+      doc.setTextColor(...color)
+      const lines = doc.splitTextToSize(text, pageWidth)
+      for (const line of lines) {
+        checkPage()
+        doc.text(line, margin, y)
+        y += fontSize * 0.5
+      }
+    }
+
+    // Title
+    doc.setFontSize(20)
+    doc.setTextColor(55, 48, 163)
+    doc.text('JD-Match — Optimized Resume Report', margin, y)
+    y += 14
+
+    // Score
+    doc.setFontSize(14)
+    doc.setTextColor(30, 30, 30)
+    doc.text(`Match Score: ${results.score} / 100`, margin, y)
+    y += 12
+
+    // Missing Keywords
+    if (results.missing_keywords.length > 0) {
+      doc.setFontSize(13)
+      doc.setTextColor(30, 30, 30)
+      doc.text('Missing Keywords', margin, y)
+      y += 8
+      writeWrapped(results.missing_keywords.join(', '))
+      y += 6
+    }
+
+    // Rewrites
+    doc.setFontSize(13)
+    doc.setTextColor(30, 30, 30)
+    checkPage(20)
+    doc.text('Smart Rewrites', margin, y)
+    y += 8
+
+    results.rewrites.forEach((rewrite, i) => {
+      checkPage(30)
+      doc.setFontSize(11)
+      doc.setTextColor(100, 100, 100)
+      doc.text(`${i + 1}. Original:`, margin, y)
+      y += 6
+      writeWrapped(rewrite.original, 10, [80, 80, 80])
+      y += 4
+
+      checkPage(15)
+      doc.setFontSize(11)
+      doc.setTextColor(55, 48, 163)
+      doc.text('Suggested:', margin, y)
+      y += 6
+      writeWrapped(rewrite.suggested, 10, [30, 30, 120])
+      y += 8
+    })
+
+    // Summary
+    checkPage(20)
+    doc.setFontSize(13)
+    doc.setTextColor(30, 30, 30)
+    doc.text('AI Summary', margin, y)
+    y += 8
+    writeWrapped(results.summary)
+
+    doc.save('jd-match-report.pdf')
+  }
+
   async function handleSubmit() {
     if (!resumeFile) {
       setError('Please upload your resume PDF.')
@@ -103,7 +192,7 @@ export default function App() {
       formData.append('resume', resumeFile)
       formData.append('jobDescription', jobDescription)
 
-      const response = await fetch('/api/analyze', {
+      const response = await fetch(`${BASE_URL}/api/analyze`, {
         method: 'POST',
         body: formData,
         // NOTE: Do NOT set Content-Type manually.
@@ -307,16 +396,27 @@ export default function App() {
         {results && (
           <div className="space-y-6">
 
-            {/* Start Over */}
-            <button
-              onClick={handleStartOver}
-              className="flex items-center gap-2 text-sm font-medium text-slate-500 hover:text-indigo-600 transition-colors"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18" />
-              </svg>
-              Start Over
-            </button>
+            {/* Actions */}
+            <div className="flex items-center gap-4">
+              <button
+                onClick={handleStartOver}
+                className="flex items-center gap-2 text-sm font-medium text-slate-500 hover:text-indigo-600 transition-colors"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18" />
+                </svg>
+                Start Over
+              </button>
+              <button
+                onClick={handleDownloadPDF}
+                className="flex items-center gap-2 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 px-4 py-2 rounded-lg transition-colors shadow-sm"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
+                </svg>
+                Download PDF
+              </button>
+            </div>
 
             {/* Score Card */}
             <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8 flex flex-col items-center gap-4">
