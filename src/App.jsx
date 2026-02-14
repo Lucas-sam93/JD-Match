@@ -199,7 +199,13 @@ export default function App() {
         // fetch sets it automatically with the correct multipart boundary.
       })
 
-      const data = await response.json()
+      const text = await response.text()
+      let data
+      try {
+        data = JSON.parse(text)
+      } catch {
+        throw new Error(text || 'Server returned an invalid response.')
+      }
 
       if (!response.ok) {
         throw new Error(data.detail || data.error || 'An unknown error occurred.')

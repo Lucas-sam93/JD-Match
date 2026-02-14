@@ -1,17 +1,17 @@
 import { createRequire } from 'node:module'
 import { GoogleGenerativeAI } from '@google/generative-ai'
+import { IncomingForm } from 'formidable'
+import { readFileSync } from 'node:fs'
 
 const require = createRequire(import.meta.url)
-const multer = require('multer')
 const pdf = require('pdf-parse/lib/pdf-parse.js')
 
-const upload = multer({ storage: multer.memoryStorage() })
-
-function runMulter(req, res) {
+function parseForm(req) {
   return new Promise((resolve, reject) => {
-    upload.single('resume')(req, res, (err) => {
+    const form = new IncomingForm({ keepExtensions: true, maxFileSize: 10 * 1024 * 1024 })
+    form.parse(req, (err, fields, files) => {
       if (err) reject(err)
-      else resolve()
+      else resolve({ fields, files })
     })
   })
 }
@@ -66,18 +66,26 @@ export default async function handler(req, res) {
   }
 
   try {
-    await runMulter(req, res)
+    const { fields, files } = await parseForm(req)
 
-    const { jobDescription } = req.body
+    // formidable v3 wraps values in arrays
+    const jobDescription = Array.isArray(fields.jobDescription)
+      ? fields.jobDescription[0]
+      : fields.jobDescription
 
-    if (!req.file) {
+    const resumeFile = Array.isArray(files.resume)
+      ? files.resume[0]
+      : files.resume
+
+    if (!resumeFile) {
       return res.status(400).json({ error: 'Resume PDF is required.' })
     }
     if (!jobDescription || !jobDescription.trim()) {
       return res.status(400).json({ error: 'Job description is required.' })
     }
 
-    const pdfData = await pdf(req.file.buffer)
+    const fileBuffer = readFileSync(resumeFile.filepath)
+    const pdfData = await pdf(fileBuffer)
     const resumeText = pdfData.text
 
     const genAI = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY)

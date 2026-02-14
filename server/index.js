@@ -118,6 +118,12 @@ app.post('/api/analyze', upload.single('resume'), async (req, res) => {
   }
 })
 
+// Global error handler — ensures all errors return JSON, not HTML/text
+app.use((err, _req, res, _next) => {
+  console.error('Unhandled error:', err)
+  res.status(500).json({ error: 'A server error occurred.', detail: err.message })
+})
+
 app.listen(PORT, () => {
   console.log(`Server running on http://localhost:${PORT}`)
 })
