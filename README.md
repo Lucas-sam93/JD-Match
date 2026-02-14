@@ -1,5 +1,9 @@
 # 📄 JD-Match: AI-Powered Resume Optimizer
 
+<!-- VERSION-START -->
+**Current version:** `0.1.0`
+<!-- VERSION-END -->
+
 **JD-Match** is a full-stack web application designed to help job seekers bypass Applicant Tracking Systems (ATS). By leveraging **Google Gemini 1.5 Flash**, the app analyzes your resume against a specific job description to identify keyword gaps and provide high-impact, AI-driven bullet point rewrites.
 
 ## ✨ Features
