@@ -34,13 +34,37 @@ JSON Schema:
   ]
 }`
 
+// gemini-1.5-flash is retired from v1beta; gemini-2.0-flash-lite is the
+// lightest free-tier model with the most generous quota.
 const model = genAI.getGenerativeModel({
-  model: 'gemini-2.0-flash',
+  model: 'gemini-2.0-flash-lite',
   systemInstruction: SYSTEM_INSTRUCTION,
   generationConfig: {
     responseMimeType: 'application/json',
   },
 })
+
+async function generateWithRetry(prompt, maxRetries = 3) {
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      const result = await model.generateContent(prompt)
+      return result
+    } catch (err) {
+      const isRateLimit =
+        err.status === 429 ||
+        err.message?.includes('RESOURCE_EXHAUSTED') ||
+        err.message?.includes('429')
+
+      if (isRateLimit && attempt < maxRetries) {
+        const delay = attempt * 5000 // 5s, 10s backoff
+        console.log(`Rate limited (attempt ${attempt}/${maxRetries}). Retrying in ${delay / 1000}s...`)
+        await new Promise((resolve) => setTimeout(resolve, delay))
+        continue
+      }
+      throw err
+    }
+  }
+}
 
 app.use(cors())
 app.use(express.json())
@@ -63,7 +87,7 @@ app.post('/api/analyze', upload.single('resume'), async (req, res) => {
     const pdfData = await pdf(req.file.buffer)
     const resumeText = pdfData.text
 
-    const result = await model.generateContent(
+    const result = await generateWithRetry(
       `Job Description:\n${jobDescription}\n\nResume:\n${resumeText}`
     )
 
@@ -81,8 +105,8 @@ app.post('/api/analyze', upload.single('resume'), async (req, res) => {
     }
     if (err.message?.includes('RESOURCE_EXHAUSTED') || err.status === 429) {
       return res.status(429).json({
-        error: 'API quota exceeded.',
-        detail: 'Google API rate limit reached. Please try again later.',
+        error: 'The AI is a bit busy right now.',
+        detail: 'Please wait 30 seconds and try again. The free-tier has a limited number of requests per minute.',
       })
     }
     if (err.message?.includes('API_KEY_INVALID') || err.message?.includes('API key not valid')) {
