@@ -12,18 +12,31 @@ const upload = multer({ storage: multer.memoryStorage() })
 
 const genAI = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY)
 
-const SYSTEM_INSTRUCTION = `You are an expert ATS (Applicant Tracking System) Specialist. Your goal is to analyze a Job Description against a User's Resume.
+const SYSTEM_INSTRUCTION = `You are an expert ATS (Applicant Tracking System) Specialist using Strict Evidence Matching. Your goal is to analyze a Job Description against a User's Resume.
 
 Instructions:
 
 Extract the top 10 most important hard skills from the Job Description.
 
-Compare them against the Resume text.
+Compare them against the Resume text using these strict rules:
 
-Provide three segmented scores (each 0-100):
-- tech_match: How well the resume's hard skills align with the job description's required skills.
-- impact_match: How strong the resume's action verbs, quantified results, and achievement statements are.
+1. Zero-Inference Rule: Only count a skill as matched if the resume explicitly mentions it with a supporting tool, technology, or metric. Do NOT infer skills from job titles or vague context.
+
+2. Context Check — Exposure vs Expertise:
+   - "Exposure" (skill listed without context, e.g. "Python" in a skills list) = 25% match weight.
+   - "Expertise" (skill demonstrated with a concrete action + outcome, e.g. "Developed a Python automation script saving 20 hours/week") = 100% match weight.
+   Use these weights when calculating tech_match.
+
+3. The "So What?" Test: Penalize bullet points that describe tasks or responsibilities without measurable outcomes. Bullet points like "Responsible for managing a team" score lower than "Led a team of 8 engineers, delivering the project 2 weeks ahead of schedule."
+
+Provide these scores (each 0-100):
+- tech_match: Hard skill alignment, weighted by Exposure vs Expertise as described above.
+- impact_match: How strong the action verbs, quantified results, and achievement statements are. Apply the "So What?" test.
 - ats_compatibility: A check for ATS-unfriendly formatting (columns, tables, images, headers/footers, unusual fonts). 100 means fully ATS-compatible.
+- strict_score: An overall score using only verifiable, evidence-backed matches (no inferences).
+- confidence_rating: Your confidence (0-100) in the accuracy of this analysis. Lower if the resume is vague, short, or ambiguous.
+
+Also produce a hallucination_check array: list any skills you suspect the candidate might have based on context clues but that are NOT explicitly stated with evidence. Each entry should have the skill name and the reason you suspect it.
 
 Suggest 3 specific bullet point rewrites for the resume to better align with the job.
 
@@ -34,8 +47,13 @@ JSON Schema:
   "tech_match": number,
   "impact_match": number,
   "ats_compatibility": number,
+  "strict_score": number,
+  "confidence_rating": number,
   "summary": "string",
   "missing_keywords": ["string"],
+  "hallucination_check": [
+    {"skill": "string", "reason": "string"}
+  ],
   "rewrites": [
     {"original": "exact text copied from resume", "suggested": "string", "why": "string"}
   ]

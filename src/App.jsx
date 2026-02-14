@@ -257,6 +257,7 @@ export default function App() {
     { key: 'tech_match', label: 'Tech Match', value: results.tech_match },
     { key: 'impact_match', label: 'Impact', value: results.impact_match },
     { key: 'ats_compatibility', label: 'ATS Ready', value: results.ats_compatibility },
+    { key: 'strict_score', label: 'Strict Score', value: results.strict_score },
   ] : []
 
   function renderResumeText() {
@@ -493,8 +494,21 @@ export default function App() {
 
                 {/* Segmented Scores */}
                 <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
-                  <h2 className="text-lg font-semibold text-gray-700 mb-4">Score Breakdown</h2>
-                  <div className="grid grid-cols-3 gap-4">
+                  <div className="flex items-center justify-between mb-4">
+                    <h2 className="text-lg font-semibold text-gray-700">Score Breakdown</h2>
+                    {results.confidence_rating != null && (
+                      <span className={`text-xs font-semibold px-2.5 py-1 rounded-full border ${
+                        results.confidence_rating >= 75
+                          ? 'bg-green-50 text-green-700 border-green-200'
+                          : results.confidence_rating >= 50
+                            ? 'bg-yellow-50 text-yellow-700 border-yellow-200'
+                            : 'bg-red-50 text-red-700 border-red-200'
+                      }`}>
+                        {results.confidence_rating}% confidence
+                      </span>
+                    )}
+                  </div>
+                  <div className="grid grid-cols-4 gap-3">
                     {scores.map(({ key, label, value }) => {
                       const offset = CIRCUMFERENCE * (1 - value / 100)
                       return (
@@ -551,6 +565,27 @@ export default function App() {
                     </div>
                   )}
                 </div>
+
+                {/* Hallucination Check */}
+                {results.hallucination_check?.length > 0 && (
+                  <div className="bg-amber-50 rounded-2xl border border-amber-200 p-6">
+                    <h2 className="text-lg font-semibold text-amber-800 mb-1">Unverified Skills</h2>
+                    <p className="text-sm text-amber-600 mb-4">
+                      Skills suspected from context but not explicitly proven in your resume.
+                    </p>
+                    <div className="space-y-3">
+                      {results.hallucination_check.map((item, i) => (
+                        <div key={i} className="flex items-start gap-3">
+                          <span className="text-amber-400 mt-0.5 flex-shrink-0">?</span>
+                          <div>
+                            <span className="text-sm font-semibold text-amber-900">{item.skill}</span>
+                            <p className="text-xs text-amber-700 leading-relaxed">{item.reason}</p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
 
                 {/* Smart Rewrites */}
                 <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
