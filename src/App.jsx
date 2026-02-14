@@ -8,6 +8,8 @@ const BASE_URL = import.meta.env.PROD
 
 const RADIUS = 36
 const CIRCUMFERENCE = 2 * Math.PI * RADIUS
+const HERO_RADIUS = 54
+const HERO_CIRCUMFERENCE = 2 * Math.PI * HERO_RADIUS
 
 function formatBytes(bytes) {
   if (bytes < 1024) return `${bytes} B`
@@ -25,6 +27,18 @@ function getStrokeColor(score) {
   if (score >= 75) return '#22c55e'
   if (score >= 50) return '#eab308'
   return '#ef4444'
+}
+
+function getCompetitiveEdgeStroke(score) {
+  if (score >= 76) return '#22c55e'
+  if (score >= 41) return '#6366f1'
+  return '#94a3b8'
+}
+
+function getScoreLabel(score) {
+  if (score >= 76) return { text: 'Strong Match', color: 'text-green-500 dark:text-green-400' }
+  if (score >= 41) return { text: 'Good Start', color: 'text-yellow-500 dark:text-yellow-400' }
+  return { text: 'Needs Work', color: 'text-red-500 dark:text-red-400' }
 }
 
 export default function App() {
@@ -267,10 +281,14 @@ export default function App() {
 
   const scores = results ? [
     { key: 'tech_match', label: 'Tech Match', value: results.tech_match },
-    { key: 'impact_match', label: 'Impact', value: results.impact_match },
+    { key: 'impact_match', label: 'Achievement Strength', value: results.impact_match },
     { key: 'ats_compatibility', label: 'ATS Ready', value: results.ats_compatibility },
-    { key: 'strict_score', label: 'Strict Score', value: results.strict_score },
+    { key: 'strict_score', label: 'Competitive Edge', value: results.strict_score },
   ] : []
+
+  const overallMatch = results
+    ? Math.round((results.tech_match + results.impact_match + results.ats_compatibility + results.strict_score) / 4)
+    : 0
 
   function renderResumeText() {
     if (!resumeText) return <p className="text-gray-400 dark:text-gray-500 italic">No resume text available.</p>
@@ -534,9 +552,9 @@ export default function App() {
               {/* ── LEFT PANEL: Analysis ── */}
               <div className="space-y-6 lg:max-h-[calc(100vh-160px)] lg:overflow-y-auto lg:pr-2 lg:sticky lg:top-6">
 
-                {/* Segmented Scores */}
+                {/* Score Breakdown */}
                 <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 p-6">
-                  <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center justify-between mb-5">
                     <h2 className="text-lg font-semibold text-gray-700 dark:text-gray-200">Score Breakdown</h2>
                     {results.confidence_rating != null && (
                       <span className={`text-xs font-semibold px-2.5 py-1 rounded-full border ${
@@ -550,19 +568,55 @@ export default function App() {
                       </span>
                     )}
                   </div>
+
+                  {/* Hero Metric — Overall Match */}
+                  <div className="flex flex-col items-center mb-6">
+                    <div className="relative w-[130px] h-[130px]">
+                      <svg width="130" height="130" viewBox="0 0 144 144">
+                        <circle cx="72" cy="72" r={HERO_RADIUS} fill="none" stroke={ringTrackColor} strokeWidth="10" />
+                        <circle
+                          cx="72" cy="72" r={HERO_RADIUS}
+                          fill="none"
+                          stroke={getStrokeColor(overallMatch)}
+                          strokeWidth="10"
+                          strokeLinecap="round"
+                          strokeDasharray={HERO_CIRCUMFERENCE}
+                          strokeDashoffset={HERO_CIRCUMFERENCE * (1 - overallMatch / 100)}
+                          transform="rotate(-90 72 72)"
+                          style={{ transition: 'stroke-dashoffset 0.8s ease-out' }}
+                        />
+                      </svg>
+                      <div className="absolute inset-0 flex flex-col items-center justify-center">
+                        <span className={`text-3xl font-bold ${getScoreColor(overallMatch)}`}>
+                          {overallMatch}
+                        </span>
+                      </div>
+                    </div>
+                    <span className="text-sm font-semibold text-gray-700 dark:text-gray-200 mt-2">Overall Match</span>
+                    {(() => {
+                      const lbl = getScoreLabel(overallMatch)
+                      return <span className={`text-xs font-medium mt-0.5 ${lbl.color}`}>{lbl.text}</span>
+                    })()}
+                  </div>
+
+                  {/* Sub-Scores */}
                   <div className="grid grid-cols-4 gap-3">
                     {scores.map(({ key, label, value }) => {
                       const offset = CIRCUMFERENCE * (1 - value / 100)
+                      const isCompetitiveEdge = key === 'strict_score'
+                      const strokeColor = isCompetitiveEdge ? getCompetitiveEdgeStroke(value) : getStrokeColor(value)
+                      const scoreColor = isCompetitiveEdge && value < 41 ? 'text-slate-400 dark:text-slate-500' : getScoreColor(value)
+                      const lbl = getScoreLabel(value)
                       return (
-                        <div key={key} className="flex flex-col items-center gap-2">
-                          <div className="relative w-[80px] h-[80px]">
-                            <svg width="80" height="80" viewBox="0 0 96 96">
-                              <circle cx="48" cy="48" r={RADIUS} fill="none" stroke={ringTrackColor} strokeWidth="8" />
+                        <div key={key} className="flex flex-col items-center gap-1.5">
+                          <div className="relative w-[72px] h-[72px]">
+                            <svg width="72" height="72" viewBox="0 0 96 96">
+                              <circle cx="48" cy="48" r={RADIUS} fill="none" stroke={ringTrackColor} strokeWidth="7" />
                               <circle
                                 cx="48" cy="48" r={RADIUS}
                                 fill="none"
-                                stroke={getStrokeColor(value)}
-                                strokeWidth="8"
+                                stroke={strokeColor}
+                                strokeWidth="7"
                                 strokeLinecap="round"
                                 strokeDasharray={CIRCUMFERENCE}
                                 strokeDashoffset={offset}
@@ -571,12 +625,13 @@ export default function App() {
                               />
                             </svg>
                             <div className="absolute inset-0 flex flex-col items-center justify-center">
-                              <span className={`text-lg font-bold ${getScoreColor(value)}`}>
+                              <span className={`text-base font-bold ${scoreColor}`}>
                                 {value}
                               </span>
                             </div>
                           </div>
-                          <span className="text-xs font-semibold text-gray-500 dark:text-gray-400 text-center">{label}</span>
+                          <span className="text-[11px] font-semibold text-gray-500 dark:text-gray-400 text-center leading-tight">{label}</span>
+                          <span className={`text-[10px] font-medium ${lbl.color}`}>{lbl.text}</span>
                         </div>
                       )
                     })}
