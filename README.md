@@ -9,13 +9,11 @@
 ## Features
 * **PDF Parsing** — Extracts text from uploaded resumes using `pdf-parse`.
 * **Strict Evidence Matching** — Zero-inference scoring with Exposure vs Expertise weighting and the "So What?" test for bullet points.
-* **Segmented Scores** — Four score rings: Tech Match, Impact, ATS Compatibility, and Strict Score, plus a confidence rating.
 * **Keyword Gap Detection** — Highlights hard skills from the JD missing in your resume.
 * **Hallucination Check** — Flags skills the AI suspects you have but can't verify from your resume text.
 * **Smart Rewrites** — AI-generated before/after bullet point suggestions with one-click apply.
 * **Refinement Suite** — Side-by-side workspace: analysis on the left, live editable resume on the right.
 * **PDF Export** — Download your refined resume as a PDF.
-* **Automated Version Sync** — GitHub Action keeps the README version badge in sync with `package.json`.
 
 ## Tech Stack
 | Component | Technology |
