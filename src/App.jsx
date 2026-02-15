@@ -326,7 +326,7 @@ export default function App() {
     <div className={`min-h-screen bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-slate-50 via-white to-indigo-50/30 dark:from-gray-950 dark:via-gray-900 dark:to-indigo-950/30 ${darkMode ? 'dark' : ''}`}>
 
       {/* ── Header ── */}
-      <header className="bg-slate-900 text-white py-5 px-6 shadow-lg">
+      <header className="bg-slate-900 text-white py-3 px-4 sm:py-5 sm:px-6 shadow-lg">
         <div className={`mx-auto flex items-center gap-3 ${results ? 'max-w-7xl' : 'max-w-4xl'}`}>
           <svg
             xmlns="http://www.w3.org/2000/svg"
@@ -348,7 +348,7 @@ export default function App() {
           </div>
           <button
             onClick={toggleDarkMode}
-            className="ml-auto p-2 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+            className="ml-auto p-2.5 min-w-[44px] min-h-[44px] rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors flex items-center justify-center"
             aria-label="Toggle dark mode"
           >
             {darkMode ? (
@@ -364,7 +364,7 @@ export default function App() {
         </div>
       </header>
 
-      <main className={`mx-auto px-4 py-10 ${results ? 'max-w-7xl' : 'max-w-4xl'}`}>
+      <main className={`mx-auto px-4 py-6 sm:py-10 ${results ? 'max-w-7xl' : 'max-w-4xl'}`}>
 
         {/* ── Error Banner ── */}
         {error && (
@@ -376,7 +376,7 @@ export default function App() {
 
         {/* ── Input Card (Glassmorphism) ── */}
         {!results && (<>
-        <div className="bg-white/70 dark:bg-gray-800/70 backdrop-blur-xl rounded-2xl shadow-sm border border-white/20 dark:border-gray-700/50 p-6 mb-8">
+        <div className="bg-white/70 dark:bg-gray-800/70 backdrop-blur-md md:backdrop-blur-xl rounded-2xl shadow-sm border border-white/20 dark:border-gray-700/50 p-6 mb-8">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
 
             {/* LEFT: Resume Drop Zone */}
@@ -400,7 +400,7 @@ export default function App() {
                   onDragLeave={handleDragLeave}
                   onDrop={handleDrop}
                   className={[
-                    'flex flex-col items-center justify-center gap-3 h-44 rounded-xl border-2 border-dashed cursor-pointer transition-colors select-none',
+                    'flex flex-col items-center justify-center gap-3 h-36 sm:h-44 rounded-xl border-2 border-dashed cursor-pointer transition-colors select-none',
                     isDragOver
                       ? 'border-indigo-400 bg-indigo-50 dark:bg-indigo-950/30'
                       : 'border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-800/50 hover:border-indigo-300 dark:hover:border-indigo-500 hover:bg-indigo-50/40 dark:hover:bg-indigo-950/30',
@@ -429,7 +429,7 @@ export default function App() {
                   </div>
                 </div>
               ) : (
-                <div className="flex items-center justify-between gap-4 h-44 rounded-xl border-2 border-green-200 dark:border-green-700 bg-green-50 dark:bg-green-950/50 px-5">
+                <div className="flex items-center justify-between gap-4 h-36 sm:h-44 rounded-xl border-2 border-green-200 dark:border-green-700 bg-green-50 dark:bg-green-950/50 px-5">
                   <div className="flex items-center gap-3 min-w-0">
                     <div className={`flex-shrink-0 w-10 h-10 rounded-lg flex items-center justify-center ${
                       isDocx(resumeFile)
@@ -449,7 +449,7 @@ export default function App() {
                   </div>
                   <button
                     onClick={handleRemoveFile}
-                    className="flex-shrink-0 text-xs text-red-500 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 font-medium border border-red-200 dark:border-red-700 rounded-lg px-3 py-1.5 hover:bg-red-50 dark:hover:bg-red-950/50 transition-colors"
+                    className="flex-shrink-0 text-xs text-red-500 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 font-medium border border-red-200 dark:border-red-700 rounded-lg px-3 py-2 min-h-[44px] hover:bg-red-50 dark:hover:bg-red-950/50 transition-colors"
                   >
                     Remove
                   </button>
@@ -470,7 +470,7 @@ export default function App() {
                 value={jobDescription}
                 onChange={(e) => setJobDescription(e.target.value)}
                 placeholder="Paste the full job description here..."
-                className="w-full h-44 resize-none rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 px-4 py-3 text-sm text-gray-800 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent shadow-inner transition"
+                className="w-full h-36 sm:h-44 resize-none rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 px-4 py-3 text-sm text-gray-800 dark:text-gray-100 placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent shadow-inner transition"
               />
               <p className="text-xs text-gray-400 dark:text-gray-500 mt-1.5 text-right">
                 {jobDescription.length} characters
@@ -484,7 +484,7 @@ export default function App() {
           onClick={handleSubmit}
           disabled={isLoading}
           className={[
-            'w-full py-4 rounded-2xl text-white font-semibold text-base tracking-wide transition-all duration-200',
+            'w-full py-4 rounded-2xl text-white font-semibold text-base tracking-wide transition-all duration-200 scroll-mt-4',
             isLoading
               ? 'bg-indigo-400 cursor-not-allowed'
               : 'bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-700 hover:to-violet-700 hover:scale-[1.02] active:scale-[0.99] shadow-md hover:shadow-lg',
@@ -531,13 +531,13 @@ export default function App() {
 
             {/* Action Bar */}
             <motion.div
-              className="flex items-center gap-4"
+              className="flex flex-wrap items-center gap-3 sm:gap-4"
               variants={{ hidden: { opacity: 0, y: 20 }, visible: { opacity: 1, y: 0 } }}
               transition={{ duration: 0.4 }}
             >
               <button
                 onClick={handleStartOver}
-                className="flex items-center gap-2 text-sm font-medium text-slate-500 dark:text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
+                className="flex items-center gap-2 text-sm font-medium text-slate-500 dark:text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors py-2 min-h-[44px]"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18" />
@@ -546,7 +546,7 @@ export default function App() {
               </button>
               <button
                 onClick={handleDownloadPDF}
-                className="flex items-center gap-2 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 px-4 py-2 rounded-lg transition-colors shadow-sm"
+                className="flex items-center gap-2 text-sm font-semibold text-white bg-indigo-600 hover:bg-indigo-700 px-4 py-2.5 min-h-[44px] rounded-lg transition-colors shadow-sm"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
@@ -571,7 +571,7 @@ export default function App() {
               <div className="space-y-6 lg:max-h-[calc(100vh-160px)] lg:overflow-y-auto lg:pr-2 lg:sticky lg:top-6">
 
                 {/* Score Breakdown */}
-                <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 p-6">
+                <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 p-4 sm:p-6">
                   <h2 className="text-lg font-semibold text-gray-700 dark:text-gray-200 mb-5">Score Breakdown</h2>
 
                   {/* Hero Metric — Overall Match */}
@@ -605,7 +605,7 @@ export default function App() {
                   </div>
 
                   {/* Sub-Scores */}
-                  <div className="grid grid-cols-3 gap-4">
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
                     {scores.map(({ key, label, value }) => {
                       const offset = CIRCUMFERENCE * (1 - value / 100)
                       const lbl = getScoreLabel(value)
@@ -641,7 +641,7 @@ export default function App() {
                 </div>
 
                 {/* Keyword Gaps */}
-                <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 p-6">
+                <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 p-4 sm:p-6">
                   <h2 className="text-lg font-semibold text-gray-700 dark:text-gray-200 mb-1">Keyword Gaps</h2>
                   <p className="text-sm text-gray-400 dark:text-gray-500 mb-4">
                     Keywords from the job description not found in your resume.
@@ -667,7 +667,7 @@ export default function App() {
 
                 {/* Hallucination Check */}
                 {results.hallucination_check?.length > 0 && (
-                  <div className="bg-amber-50 dark:bg-amber-950/30 rounded-2xl border border-amber-200 dark:border-amber-800 p-6">
+                  <div className="bg-amber-50 dark:bg-amber-950/30 rounded-2xl border border-amber-200 dark:border-amber-800 p-4 sm:p-6">
                     <h2 className="text-lg font-semibold text-amber-800 dark:text-amber-200 mb-1">Unverified Skills</h2>
                     <p className="text-sm text-amber-600 dark:text-amber-400 mb-4">
                       Skills suspected from context but not explicitly proven in your resume.
@@ -687,7 +687,7 @@ export default function App() {
                 )}
 
                 {/* Smart Rewrites */}
-                <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 p-6">
+                <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 p-4 sm:p-6">
                   <h2 className="text-lg font-semibold text-gray-700 dark:text-gray-200 mb-4">Smart Rewrites</h2>
                   <div className="space-y-4">
                     {results.rewrites.map((rewrite, i) => {
@@ -735,7 +735,7 @@ export default function App() {
                               onClick={() => handleApplyRewrite(i)}
                               disabled={isApplied}
                               className={[
-                                'text-xs font-semibold px-4 py-2 rounded-lg border transition-all',
+                                'text-xs font-semibold px-4 py-2.5 min-h-[44px] rounded-lg border transition-all',
                                 isApplied
                                   ? 'bg-green-50 dark:bg-green-950/50 text-green-600 dark:text-green-400 border-green-200 dark:border-green-800 cursor-default'
                                   : 'bg-indigo-600 text-white border-indigo-600 hover:bg-indigo-700 hover:border-indigo-700',
@@ -751,7 +751,7 @@ export default function App() {
                 </div>
 
                 {/* AI Summary */}
-                <div className="bg-indigo-50 dark:bg-indigo-950/30 border border-indigo-100 dark:border-indigo-800 rounded-2xl p-6">
+                <div className="bg-indigo-50 dark:bg-indigo-950/30 border border-indigo-100 dark:border-indigo-800 rounded-2xl p-4 sm:p-6">
                   <div className="flex items-start gap-3">
                     <svg
                       xmlns="http://www.w3.org/2000/svg"
@@ -794,7 +794,7 @@ export default function App() {
 
                   <div
                     ref={liveResumeRef}
-                    className="px-8 py-6 max-h-[calc(100vh-220px)] overflow-y-auto"
+                    className="px-4 sm:px-8 py-6 max-h-[70vh] lg:max-h-[calc(100vh-220px)] overflow-y-auto"
                   >
                     <div className="whitespace-pre-wrap text-sm text-gray-800 dark:text-gray-200 leading-relaxed font-[Georgia,_serif]">
                       {renderResumeText()}
